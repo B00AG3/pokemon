@@ -61,14 +61,18 @@ standard EVM tooling.
 | --- | --- |
 | `PokeCardToken` | Fixed-supply ERC-20, full supply to treasury for LP seeding |
 | `MilestoneCards` | ERC-721 + ERC-2981; one card per market-cap milestone, mints exactly once, keeper-gated, cards mint to the treasury for sale |
-| `MockMilestonePriceOracle` | Test oracle (owner sets market cap). Swap for a Uniswap TWAP adapter on mainnet |
+| `UniswapV4SpotOracle` | Production `IMilestonePriceOracle`: POKE/WETH v4 pool price x Chainlink ETH/USD x totalSupply. Spot reads are smoothed by the keeper + confirm window; swap in a TWAP variant for fully trustless pricing |
+| `CardSale` | Treasury sale with pricing that tracks the token: `price = basePrice x currentMarketCap / card's launch milestone` |
+| `MockMilestonePriceOracle`, `MockStateView`, `MockAggregator` | Test doubles |
 
 ```bash
 cd contracts
 cp .env.example .env        # add a funded PRIVATE_KEY for testnet
 npm install
-npm test                    # 9 tests: ladder, one-time mint, keeper gate, confirm window
-npm run deploy:testnet      # MOCK_ORACLE=1 by default on testnet
+npm test                    # 20 tests: ladder, one-time mint, keeper gate,
+                            # confirm window, oracle math, sale + royalties
+npm run metadata            # generate card metadata (+ Pinata upload with PINATA_JWT)
+npm run deploy:testnet      # MOCK_ORACLE=1 by default; DEPLOY_SALE=1 adds CardSale
 npm run keeper              # poll oracle, confirm crossings, mint on milestones
 ```
 

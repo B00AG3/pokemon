@@ -6,7 +6,8 @@
     "test": "hardhat test",
     "deploy:testnet": "hardhat run scripts/deploy.ts --network robinhoodTestnet",
     "deploy:mainnet": "hardhat run scripts/deploy.ts --network robinhoodMainnet",
-    "keeper": "ts-node scripts/keeper.ts"
+    "keeper": "ts-node scripts/keeper.ts",
+    "metadata": "ts-node scripts/generate-metadata.ts"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.2"

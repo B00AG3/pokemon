@@ -30,3 +30,6 @@ contracts/artifacts
 contracts/typechain-types
 contracts/.env
 contracts/deployments/hardhat.json
+
+.vercel
+contracts/metadata-out

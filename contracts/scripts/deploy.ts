@@ -57,6 +57,20 @@ async function main() {
   const cardsAddress = await cards.getAddress();
   console.log('MilestoneCards:', cardsAddress);
 
+  // Optional treasury sale contract: dynamic pricing that tracks market cap.
+  let saleAddress: string | null = null;
+  if (process.env.DEPLOY_SALE === '1') {
+    const basePriceWei = BigInt(process.env.SALE_BASE_PRICE_WEI ?? (10n ** 16n).toString());
+    const sale = await (
+      await ethers.getContractFactory('CardSale')
+    ).deploy(cardsAddress, oracleAddress, basePriceWei);
+    await sale.waitForDeployment();
+    saleAddress = await sale.getAddress();
+    // let the sale move treasury-held cards, then list every minted card
+    await (await cards.connect(deployer).setApprovalForAll(saleAddress, true)).wait();
+    console.log('CardSale:', saleAddress, '(treasury approved)');
+  }
+
   const record = {
     network: network.name,
     chainId: Number((await ethers.provider.getNetwork()).chainId),
@@ -67,6 +81,7 @@ async function main() {
     oracle: oracleAddress,
     mockOracle: mock,
     cards: cardsAddress,
+    sale: saleAddress,
     thresholds: thresholds.map(String),
     confirmWindow: String(confirmWindow),
     baseTokenURI,

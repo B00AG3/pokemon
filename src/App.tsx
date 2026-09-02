@@ -91,9 +91,6 @@ export default function App() {
 
         <header className="grid items-center gap-10 pb-10 pt-8 lg:grid-cols-[1.02fr_0.98fr] lg:pt-10">
           <div className="max-w-xl">
-            <p className="eyebrow mb-6">
-              Robinhood Chain / launching soon
-            </p>
             <h1 className="font-display text-5xl font-semibold leading-[1.06] tracking-tight sm:text-6xl xl:text-[4.2rem]">
               Every milestone,
               <br />a real Pokemon card.

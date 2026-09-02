@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { getCardById, getCardImageUrl } from '../services/tcgdex';
+import CardDetail from './CardDetail';
 import {
   DEMO_CARDS,
   ETH_USD,
@@ -15,6 +16,9 @@ interface DemoArt {
   tcgId: string;
   name: string;
   image?: string;
+  setName?: string;
+  rarity?: string;
+  tcgDescription?: string;
 }
 
 function ownerLabel(owner: string): string {
@@ -37,6 +41,7 @@ export default function DemoMarket() {
   const [art, setArt] = useState<Record<string, DemoArt>>({});
   const [tradeFor, setTradeFor] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [openCardId, setOpenCardId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -53,6 +58,9 @@ export default function DemoMarket() {
             tcgId: card.id,
             name: card.name,
             image: card.image,
+            setName: card.set?.name,
+            rarity: card.rarity,
+            tcgDescription: card.description,
           };
         }
       });
@@ -62,6 +70,8 @@ export default function DemoMarket() {
       alive = false;
     };
   }, []);
+
+  const userKey = address ?? 'guest';
 
   const cards = useMemo(
     () =>
@@ -79,6 +89,23 @@ export default function DemoMarket() {
       }),
     [art, marketCap, portfolio],
   );
+
+  const openCard = openCardId
+    ? cards.find((c) => c.id === openCardId) ?? null
+    : null;
+
+  const tradeOptionsFor = (targetId: string) => {
+    const target = cards.find((c) => c.id === targetId);
+    if (!target) return [];
+    // acquiring this card: you give one of your other cards.
+    // selling/trading this card away: you receive one of the other cards.
+    const source = target.owner === userKey
+      ? cards.filter((c) => c.id !== targetId)
+      : portfolio.myCards
+          .map((id) => cards.find((c) => c.id === id))
+          .filter((c): c is (typeof cards)[number] => Boolean(c) && c!.id !== targetId);
+    return source.map((c) => ({ id: c.id, name: c.name, image: c.image, price: c.price }));
+  };
 
   const handleBuy = (cardId: string) => {
     const card = cards.find((c) => c.id === cardId)!;
@@ -122,20 +149,18 @@ export default function DemoMarket() {
     <section id="demo" className="scroll-mt-10 pb-16">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow flex items-center gap-2">
-            02 / Demo market
-            <span className="rounded-full border border-amber-400/40 px-2 py-0.5 text-[10px] text-amber-300/90">
-              SIMULATED
-            </span>
-          </p>
+          <p className="eyebrow">02 / Market</p>
           <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight">
             Buy, sell, trade - try the loop
           </h2>
+          <p className="mt-1.5 text-sm text-white/45">
+            tap a card to open it
+          </p>
         </div>
         <div className="flex items-center gap-2.5 font-mono text-xs text-white/45">
           <span className="status-dot animate-pulse" aria-hidden />
           <span>
-            simulated cap ${marketCap.toLocaleString('en-US')} - POKE $
+            market cap ${marketCap.toLocaleString('en-US')} - POKE $
             {pokeUsdPrice(marketCap).toFixed(4)}
           </span>
         </div>
@@ -161,7 +186,7 @@ export default function DemoMarket() {
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         {cards.map((card) => {
-          const mine = card.owner === (address ?? 'guest');
+          const mine = card.owner === userKey;
           const hasCards = portfolio.myCards.length > 0;
           const tradeGive = tradeFor === card.id && hasCards ? portfolio.myCards[0] : null;
           const giveCard = tradeGive ? cards.find((c) => c.id === tradeGive) : null;
@@ -175,35 +200,42 @@ export default function DemoMarket() {
               key={card.id}
               className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-4"
             >
-              {card.owner === (address ?? 'guest') && (
+              {mine && (
                 <span className="absolute right-3 top-3 z-10 rounded-full bg-[#00bd7d] px-2 py-0.5 font-mono text-[10px] font-bold text-slate-950">
                   YOURS
                 </span>
               )}
-              <div className="overflow-hidden rounded-xl border border-white/10">
-                {card.image ? (
-                  <img
-                    src={getCardImageUrl({ image: card.image })}
-                    alt={card.name}
-                    className="aspect-[245/342] w-full object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="aspect-[245/342] w-full animate-pulse bg-white/[0.04]" />
-                )}
-              </div>
+              <button
+                type="button"
+                className="block w-full cursor-pointer text-left"
+                onClick={() => setOpenCardId(card.id)}
+                aria-label={`Open ${card.name}`}
+              >
+                <div className="overflow-hidden rounded-xl border border-white/10 transition hover:border-white/30">
+                  {card.image ? (
+                    <img
+                      src={getCardImageUrl({ image: card.image })}
+                      alt={card.name}
+                      className="aspect-[245/342] w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="aspect-[245/342] w-full animate-pulse bg-white/[0.04]" />
+                  )}
+                </div>
 
-              <div className="mt-3">
-                <p className="truncate text-sm font-semibold">{card.name}</p>
-                <p className="mt-0.5 font-mono text-[11px] text-white/40">
-                  owner: {ownerLabel(card.owner)} - launched at $
-                  {card.launchMc.toLocaleString('en-US')}
-                </p>
-                <p className="mt-2 font-mono text-sm text-white">
-                  {formatEth(card.price)}{' '}
-                  <span className="text-[11px] text-white/40">(~${card.usd.toFixed(2)})</span>
-                </p>
-              </div>
+                <div className="mt-3">
+                  <p className="truncate text-sm font-semibold">{card.name}</p>
+                  <p className="mt-0.5 font-mono text-[11px] text-white/40">
+                    owner: {ownerLabel(card.owner)} - launched at $
+                    {card.launchMc.toLocaleString('en-US')}
+                  </p>
+                  <p className="mt-2 font-mono text-sm text-white">
+                    {formatEth(card.price)}{' '}
+                    <span className="text-[11px] text-white/40">(~${card.usd.toFixed(2)})</span>
+                  </p>
+                </div>
+              </button>
 
               <div className="mt-3 flex flex-wrap gap-2">
                 {!mine && (
@@ -260,11 +292,39 @@ export default function DemoMarket() {
         })}
       </div>
 
-      <p className="mt-6 font-mono text-xs leading-relaxed text-white/35">
-        demo mode: simulated balances and prices, nothing on chain. when the
-        contracts deploy, these same buttons call MilestoneCards + CardSale
-        with real ETH.
-      </p>
+      {openCard && (
+        <CardDetail
+          card={{
+            id: openCard.id,
+            cardNumber: Number(openCard.id.slice(-1)),
+            name: openCard.name,
+            image: openCard.image,
+            setName: openCard.setName,
+            rarity: openCard.rarity,
+            tcgDescription: openCard.tcgDescription,
+            launchMc: openCard.launchMc,
+            price: openCard.price,
+            ownerLabel: ownerLabel(openCard.owner),
+            isMine: openCard.owner === userKey,
+          }}
+          tradeOptions={tradeOptionsFor(openCard.id)}
+          eth={portfolio.eth}
+          marketCap={marketCap}
+          onBack={() => setOpenCardId(null)}
+          onBuy={() => handleBuy(openCard.id)}
+          onSell={() => handleSell(openCard.id)}
+          onTrade={(giveId, getId) => {
+            const give = cards.find((c) => c.id === giveId);
+            const get = cards.find((c) => c.id === getId);
+            if (!give || !get) return;
+            const delta = Math.round((get.price - give.price) * 1000) / 1000;
+            portfolio.trade(giveId, getId, delta);
+            setOpenCardId(null);
+            setStatus(`Traded ${give.name} for ${get.name}`);
+            setTimeout(() => setStatus(null), 2500);
+          }}
+        />
+      )}
     </section>
   );
 }

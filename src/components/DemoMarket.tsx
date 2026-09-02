@@ -151,7 +151,7 @@ export default function DemoMarket() {
         <div>
           <p className="eyebrow">02 / Market</p>
           <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight">
-            Buy, sell, trade - try the loop
+            Buy, sell, trade
           </h2>
           <p className="mt-1.5 text-sm text-white/45">
             tap a card to open it

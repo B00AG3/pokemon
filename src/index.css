@@ -173,7 +173,7 @@ input:focus-visible {
 
 .orbit-stage {
   position: relative;
-  height: 500px;
+  height: 460px;
   perspective: 1300px;
 }
 

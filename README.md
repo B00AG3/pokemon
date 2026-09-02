@@ -57,6 +57,12 @@ On-chain layer for the token + milestone card loop. Robinhood Chain is an
 Arbitrum Orbit L2: mainnet chainId `4663`, testnet `46630`, gas in ETH,
 standard EVM tooling.
 
+The site ships with a **simulated demo market** (`src/demo/`, "Demo market"
+section): a drifting market-cap ticker, three test cards priced with the
+contract formula (`basePrice x marketCap / launchCap`), and buy / sell /
+trade flows against a localStorage portfolio. When the contracts deploy,
+`DemoMarket` swaps to `useMilestoneState` + the sale contract 1:1.
+
 | Contract | Purpose |
 | --- | --- |
 | `PokeCardToken` | Fixed-supply ERC-20, full supply to treasury for LP seeding |

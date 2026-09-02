@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import CardCoverflow from './components/CardCoverflow';
+import DemoMarket from './components/DemoMarket';
 import WalletButton from './components/WalletButton';
 import { getCardWall } from './services/tcgdex';
 import type { CardListItem } from './types/tcgdex';
@@ -68,7 +69,7 @@ export default function App() {
           <WalletButton />
         </nav>
 
-        <header className="grid items-center gap-12 pb-20 pt-12 lg:grid-cols-[1.02fr_0.98fr] lg:pt-16">
+        <header className="grid items-center gap-10 pb-10 pt-8 lg:grid-cols-[1.02fr_0.98fr] lg:pt-10">
           <div className="max-w-xl">
             <p className="eyebrow mb-6">
               Robinhood Chain / launching soon
@@ -88,13 +89,13 @@ export default function App() {
           <CardCoverflow items={heroCards} />
         </header>
 
-        <section id="how" className="scroll-mt-10 pb-28">
+        <section id="how" className="scroll-mt-10 pb-12 pt-2">
           <p className="eyebrow mb-3">01 / The idea</p>
           <h2 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">
             How it works
           </h2>
 
-          <div className="mt-12 grid gap-10 md:grid-cols-3">
+          <div className="mt-8 grid gap-10 md:grid-cols-3">
             {HOW_IT_WORKS.map((item) => (
               <div key={item.step}>
                 <p className="font-mono text-xs text-white/30">{item.step}</p>
@@ -108,7 +109,7 @@ export default function App() {
             ))}
           </div>
 
-          <div className="terminal mt-14 p-8 sm:p-10">
+          <div className="terminal mt-10 p-7 sm:p-9">
             <p className="eyebrow">card #01 / single mint</p>
             <p className="mt-4 max-w-2xl font-display text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
               Card #01 is the cheapest this collection will ever be.
@@ -120,6 +121,8 @@ export default function App() {
             </p>
           </div>
         </section>
+
+        <DemoMarket />
       </div>
     </div>
   );

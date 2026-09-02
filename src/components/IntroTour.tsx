@@ -67,6 +67,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
   const [elapsed, setElapsed] = useState(0);
   const [arts, setArts] = useState<Record<string, { name: string; image?: string }>>({});
   const modalRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const buyRef = useRef<HTMLButtonElement>(null);
   const doneRef = useRef(false);
@@ -91,14 +92,21 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
   }, []);
 
   useEffect(() => {
-    let raf = 0;
+    // rAF drives the animation while visible; a timer fallback keeps the
+    // timeline moving if the tab is backgrounded and rAF gets throttled
     const startedAt = performance.now();
-    const tick = (now: number) => {
-      setElapsed((now - startedAt) / 1000);
-      raf = requestAnimationFrame(tick);
+    let raf = 0;
+    let interval: number | undefined;
+    const tick = () => {
+      const t = (performance.now() - startedAt) / 1000;
+      setElapsed((prev) => (t > prev ? t : prev));
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    interval = window.setInterval(tick, 80);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
@@ -118,26 +126,32 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
 
   const clickFlash = elapsed >= CLICK_AT && elapsed < CLICK_AT + 0.5;
 
-  // mock scroll + cursor geometry (modal-relative)
-  const viewportRef = useRef<HTMLDivElement>(null);
+  // mock scroll + cursor geometry (site-viewport-relative: the cursor div
+  // lives inside viewportRef, below the browser chrome)
   let cursor = { x: 0, y: 0 };
-  if (modalRef.current && viewportRef.current) {
-    const m = modalRef.current.getBoundingClientRect();
+  if (viewportRef.current) {
     const v = viewportRef.current.getBoundingClientRect();
     if (elapsed < GLIDE[0]) {
-      cursor = { x: m.width * 0.74, y: v.top - m.top + v.height * 0.3 + Math.sin(elapsed * 3) * 5 };
+      cursor = { x: v.width * 0.74, y: v.height * 0.3 + Math.sin(elapsed * 3) * 5 };
     } else if (buyRef.current) {
       const b = buyRef.current.getBoundingClientRect();
-      const bx = b.x - m.left + b.width * 0.4;
-      const by = b.y - m.top + b.height / 2;
+      const bx = b.x - v.left + b.width * 0.4;
+      const by = b.y - v.top + b.height / 2;
+      const ix = v.width * 0.74;
+      const iy = v.height * 0.3;
       cursor = {
-        x: m.width * 0.74 * (1 - glideP) + bx * glideP,
-        y: (v.top - m.top + v.height * 0.3) * (1 - glideP) + by * glideP,
+        x: ix * (1 - glideP) + bx * glideP,
+        y: iy * (1 - glideP) + by * glideP,
       };
     }
   }
 
-  const scrollY = scrollP * 430;
+  // scroll the mock to its maximum so the Buy buttons are fully in view
+  const scrollMax =
+    innerRef.current && viewportRef.current
+      ? Math.max(0, innerRef.current.scrollHeight - viewportRef.current.clientHeight)
+      : 430;
+  const scrollY = scrollP * scrollMax;
 
   // candle rendering values
   const chartW = 620;

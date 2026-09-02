@@ -75,6 +75,7 @@ export default function CardDetail({
 }: CardDetailProps) {
   const [flipped, setFlipped] = useState(false);
   const [targetId, setTargetId] = useState<string | null>(null);
+  const [backFailed, setBackFailed] = useState(false);
 
   useEffect(() => {
     setFlipped(false);
@@ -140,8 +141,18 @@ export default function CardDetail({
                   )}
                 </div>
                 <div className="flip-face flip-back">
-                  <div className="aspect-[245/342] w-full overflow-hidden rounded-xl border border-white/10 shadow-2xl shadow-black/70">
-                    <PokeballBack />
+                  <div className="aspect-[245/342] w-full overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/70">
+                    {backFailed ? (
+                      <PokeballBack />
+                    ) : (
+                      <img
+                        src="/card-back.png"
+                        alt="Card back"
+                        className="h-full w-full object-cover"
+                        draggable={false}
+                        onError={() => setBackFailed(true)}
+                      />
+                    )}
                   </div>
                 </div>
               </div>

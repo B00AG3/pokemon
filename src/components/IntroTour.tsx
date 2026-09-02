@@ -5,17 +5,29 @@ import { getCardById, getCardImageUrl } from '../services/tcgdex';
  * First-visit intro: a motion-video modal containing a 1:1 recreation of the
  * site. The playhead scrolls the mock page down to the market, a cursor buys
  * card #01, then a TradingView-style candlestick chart slides in beside the
- * card value - candles include natural red pullbacks, not just green.
- * Nothing touches the real site: it is a scripted animation with a skip.
+ * card value - candles include natural red pullbacks.
+ *
+ * Performance: React renders the static tree once; a single rAF loop (with a
+ * timer fallback) writes transforms / SVG attributes / textContent directly.
+ * Zero React re-renders per frame.
  */
 
 const TOTAL = 14.4;
-const SCROLL = [2.0, 3.6] as const;
-const GLIDE = [3.6, 4.8] as const;
 const CLICK_AT = 4.8;
 const CHART_AT = 5.6;
 const CANDLE_SPAN = 5.4;
 const CANDLE_COUNT = 48;
+
+const CHART_W = 620;
+const CHART_H = 330;
+const PAD_L = 12;
+const PAD_R = 84;
+const PAD_T = 18;
+const PAD_B = 34;
+const INNER_W = CHART_W - PAD_L - PAD_R;
+const INNER_H = CHART_H - PAD_T - PAD_B;
+const SLOT = INNER_W / CANDLE_COUNT;
+const BODY_W = SLOT * 0.55;
 
 interface Candle {
   open: number;
@@ -58,21 +70,61 @@ const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 const usd = (value: number) => `$${Math.round(value).toLocaleString('en-US')}`;
 
 const DEMO_CARDS = [
-  { tcgId: 'base1-4', launch: 5000, no: '01' },
-  { tcgId: 'base1-2', launch: 10000, no: '02' },
-  { tcgId: 'base1-1', launch: 25000, no: '03' },
+  { tcgId: 'base1-4', launch: 5000 },
+  { tcgId: 'base1-2', launch: 10000 },
+  { tcgId: 'base1-1', launch: 25000 },
 ];
 
+interface DemoArt {
+  name: string;
+  image?: string;
+}
+
+function timeLabel(i: number) {
+  const minutes = 9 * 60 + i * 5;
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
 export default function IntroTour({ onDone }: { onDone: () => void }) {
-  const [elapsed, setElapsed] = useState(0);
-  const [arts, setArts] = useState<Record<string, { name: string; image?: string }>>({});
+  const rootRef = useRef<HTMLDivElement>(null);
+  const bannerRef = useRef<HTMLDivElement>(null);
+  const taglineRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
-  const buyRef = useRef<HTMLButtonElement>(null);
-  const doneRef = useRef(false);
+  const cursorRef = useRef<HTMLDivElement>(null);
+  const buyBtnRef = useRef<HTMLButtonElement>(null);
+  const sellBtnRef = useRef<HTMLSpanElement>(null);
+  const badgeRef = useRef<HTMLSpanElement>(null);
+  const balanceRef = useRef<HTMLSpanElement>(null);
+  const cardsRef = useRef<HTMLSpanElement>(null);
+  const statusRef = useRef<HTMLSpanElement>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const clipRectRef = useRef<SVGRectElement>(null);
+  const headRef = useRef<SVGCircleElement>(null);
+  const lastLineRef = useRef<SVGLineElement>(null);
+  const chipGroupRef = useRef<SVGGElement>(null);
+  const chipRectRef = useRef<SVGRectElement>(null);
+  const chipTextRef = useRef<SVGTextElement>(null);
+  const mcValueRef = useRef<HTMLSpanElement>(null);
+  const cardValueRef = useRef<HTMLParagraphElement>(null);
+  const cardPctRef = useRef<HTMLSpanElement>(null);
 
-  const candles = useMemo(buildCandles, []);
+  const doneRef = useRef(false);
+  const boughtRef = useRef(false);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  const [arts, setArts] = useState<Record<string, DemoArt>>({});
+  const candles = useMemo(() => buildCandles(), []);
+  const minLow = useMemo(() => Math.min(...candles.map((c) => c.low)), [candles]);
+  const maxHigh = useMemo(() => Math.max(...candles.map((c) => c.high)), [candles]);
+
+  const finish = () => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    onDoneRef.current();
+  };
 
   useEffect(() => {
     let alive = true;
@@ -80,7 +132,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
       DEMO_CARDS.map((card) => getCardById(card.tcgId).catch(() => null)),
     ).then((results) => {
       if (!alive) return;
-      const map: Record<string, { name: string; image?: string }> = {};
+      const map: Record<string, DemoArt> = {};
       results.forEach((card, i) => {
         if (card) map[DEMO_CARDS[i].tcgId] = { name: card.name, image: card.image };
       });
@@ -92,128 +144,141 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
   }, []);
 
   useEffect(() => {
-    // rAF drives the animation while visible; a timer fallback keeps the
-    // timeline moving if the tab is backgrounded and rAF gets throttled
+    const yFor = (price: number) =>
+      PAD_T + ((maxHigh - price) / (maxHigh - minLow)) * INNER_H;
+
     const startedAt = performance.now();
     let raf = 0;
     let interval: number | undefined;
-    const tick = () => {
-      const t = (performance.now() - startedAt) / 1000;
-      setElapsed((prev) => (t > prev ? t : prev));
-    };
-    raf = requestAnimationFrame(tick);
-    interval = window.setInterval(tick, 80);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.clearInterval(interval);
-    };
-  }, []);
 
-  useEffect(() => {
-    if (elapsed >= TOTAL && !doneRef.current) {
+    const finish = () => {
+      if (doneRef.current) return;
       doneRef.current = true;
-      onDone();
-    }
-  }, [elapsed, onDone]);
+      onDoneRef.current();
+    };
 
-  const bought = elapsed >= CLICK_AT;
-  const modalIn = clamp01(elapsed / 0.5);
-  const scrollP = easeInOut(clamp01((elapsed - SCROLL[0]) / (SCROLL[1] - SCROLL[0])));
-  const glideP = easeInOut(clamp01((elapsed - GLIDE[0]) / (GLIDE[1] - GLIDE[0])));
-  const chartIn = clamp01((elapsed - CHART_AT) / 0.5);
-  const candleFloat = clamp01((elapsed - (CHART_AT + 0.3)) / CANDLE_SPAN);
-  const tourFade = elapsed < TOTAL - 0.8 ? 1 : clamp01((TOTAL - elapsed) / 0.8);
+    const tick = () => {
+      if (doneRef.current) return;
+      const t = (performance.now() - startedAt) / 1000;
 
-  const clickFlash = elapsed >= CLICK_AT && elapsed < CLICK_AT + 0.5;
+      // mock scroll
+      const scrollP = easeInOut(clamp01((t - 2.0) / 1.6));
+      if (innerRef.current && viewportRef.current) {
+        const max = Math.max(0, innerRef.current.scrollHeight - viewportRef.current.clientHeight);
+        innerRef.current.style.transform = `translateY(${-scrollP * max}px)`;
+      }
 
-  // mock scroll + cursor geometry (site-viewport-relative: the cursor div
-  // lives inside viewportRef, below the browser chrome)
-  let cursor = { x: 0, y: 0 };
-  if (viewportRef.current) {
-    const v = viewportRef.current.getBoundingClientRect();
-    if (elapsed < GLIDE[0]) {
-      cursor = { x: v.width * 0.74, y: v.height * 0.3 + Math.sin(elapsed * 3) * 5 };
-    } else if (buyRef.current) {
-      const b = buyRef.current.getBoundingClientRect();
-      const bx = b.x - v.left + b.width * 0.4;
-      const by = b.y - v.top + b.height / 2;
-      const ix = v.width * 0.74;
-      const iy = v.height * 0.3;
-      cursor = {
-        x: ix * (1 - glideP) + bx * glideP,
-        y: iy * (1 - glideP) + by * glideP,
-      };
-    }
-  }
+      // cursor glide to buy
+      const glideP = easeInOut(clamp01((t - 3.6) / 1.2));
+      if (cursorRef.current && viewportRef.current && buyBtnRef.current) {
+        const v = viewportRef.current.getBoundingClientRect();
+        const b = buyBtnRef.current.getBoundingClientRect();
+        const ix = v.width * 0.74;
+        const iy = v.height * 0.3 + Math.sin(t * 3) * 5;
+        const bx = b.x - v.left + b.width * 0.4;
+        const by = b.y - v.top + b.height / 2;
+        cursorRef.current.style.transform = `translate3d(${(ix * (1 - glideP) + bx * glideP).toFixed(1)}px, ${(iy * (1 - glideP) + by * glideP).toFixed(1)}px, 0)`;
+        cursorRef.current.style.opacity = t >= CHART_AT ? '0' : '1';
+      }
 
-  // scroll the mock to its maximum so the Buy buttons are fully in view
-  const scrollMax =
-    innerRef.current && viewportRef.current
-      ? Math.max(0, innerRef.current.scrollHeight - viewportRef.current.clientHeight)
-      : 430;
-  const scrollY = scrollP * scrollMax;
+      // the buy
+      if (t >= CLICK_AT && !boughtRef.current) {
+        boughtRef.current = true;
+        if (badgeRef.current) badgeRef.current.style.opacity = '1';
+        if (buyBtnRef.current) buyBtnRef.current.style.display = 'none';
+        if (sellBtnRef.current) sellBtnRef.current.style.display = 'inline-flex';
+        if (statusRef.current) statusRef.current.style.display = 'inline';
+        if (balanceRef.current) balanceRef.current.textContent = '1.941 ETH';
+        if (cardsRef.current) cardsRef.current.textContent = '1';
+      }
 
-  // candle rendering values
-  const chartW = 620;
-  const chartH = 330;
-  const padL = 12;
-  const padR = 84;
-  const padT = 18;
-  const padB = 34;
-  const innerW = chartW - padL - padR;
-  const innerH = chartH - padT - padB;
-  const slot = innerW / CANDLE_COUNT;
-  const bodyW = slot * 0.55;
-  const minLow = Math.min(...candles.map((c) => c.low));
-  const maxHigh = Math.max(...candles.map((c) => c.high));
-  const yOf = (price: number) => padT + ((maxHigh - price) / (maxHigh - minLow)) * innerH;
+      // chart panel slide-in
+      const chartO = clamp01((t - CHART_AT) / 0.5);
+      if (chartRef.current) {
+        chartRef.current.style.opacity = String(chartO);
+        chartRef.current.style.transform = `translateY(${((1 - chartO) * 24).toFixed(1)}px)`;
+      }
 
-  const visible = Math.min(CANDLE_COUNT, Math.floor(candleFloat * CANDLE_COUNT) + 1);
-  const frac = candleFloat * CANDLE_COUNT - Math.floor(candleFloat * CANDLE_COUNT);
-  const lastVisible = candles[visible - 1];
-  const formingClose =
-    lastVisible && frac > 0
-      ? lastVisible.open + (lastVisible.close - lastVisible.open) * frac
-      : lastVisible?.close ?? 5000;
-  const shownClose = lastVisible ? (frac > 0 ? formingClose : lastVisible.close) : 5000;
+      // candle reveal + live values
+      const candleFloat = clamp01((t - (CHART_AT + 0.3)) / CANDLE_SPAN) * CANDLE_COUNT;
+      const idx = Math.min(CANDLE_COUNT - 1, Math.floor(candleFloat));
+      const frac = candleFloat - idx;
+      const c0 = candles[idx];
+      const shown = c0.open + (c0.close - c0.open) * frac;
+      const revealX = PAD_L + candleFloat * SLOT + SLOT / 2;
 
-  const timeLabel = (i: number) => {
-    const minutes = 9 * 60 + i * 5;
-    return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-  };
+      if (clipRectRef.current) clipRectRef.current.setAttribute('width', revealX.toFixed(1));
+      if (headRef.current) {
+        headRef.current.setAttribute('cx', revealX.toFixed(1));
+        headRef.current.setAttribute('cy', yFor(shown).toFixed(1));
+      }
+      if (lastLineRef.current) {
+        lastLineRef.current.setAttribute('y1', yFor(shown).toFixed(1));
+        lastLineRef.current.setAttribute('y2', yFor(shown).toFixed(1));
+      }
+      if (chipGroupRef.current) {
+        chipGroupRef.current.setAttribute('transform', `translate(0 ${yFor(shown).toFixed(1)})`);
+      }
+      if (chipRectRef.current) {
+        chipRectRef.current.setAttribute('fill', shown >= c0.open ? '#16c784' : '#ea3943');
+      }
+      if (chipTextRef.current) chipTextRef.current.textContent = usd(shown);
+      if (mcValueRef.current) mcValueRef.current.textContent = usd(shown);
 
-  const balance = bought ? 1.941 : 2.0;
-  const myCards = bought ? 1 : 0;
-  const cardUsd = (shownClose / 5000) * 150;
-  const cardPct = Math.round(((shownClose / 5000 - 1) * 100) * 10) / 10;
+      // card value tracks the chart
+      const cardUsd = (shown / 5000) * 150;
+      const pct = Math.round((shown / 5000 - 1) * 1000) / 10;
+      if (cardValueRef.current) cardValueRef.current.textContent = usd(cardUsd);
+      if (cardPctRef.current) {
+        cardPctRef.current.textContent = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}% SINCE MINT`;
+        cardPctRef.current.style.background = pct >= 0 ? '#00bd7d' : '#ea3943';
+      }
+
+      // banner + tagline + fade out
+      if (bannerRef.current) {
+        bannerRef.current.style.opacity =
+          t < 3.0 ? String(clamp01(t / 0.5)) : String(Math.max(0, 1 - (t - 3.0) / 0.4));
+      }
+      if (taglineRef.current) {
+        taglineRef.current.style.opacity = String(clamp01((t - 11.5) / 0.8));
+      }
+      if (rootRef.current) {
+        rootRef.current.style.opacity = t > TOTAL - 0.8 ? String(clamp01((TOTAL - t) / 0.8)) : '1';
+      }
+
+      if (t >= TOTAL) finish();
+    };
+
+    raf = window.requestAnimationFrame(function loop() {
+      tick();
+      if (!doneRef.current) raf = window.requestAnimationFrame(loop);
+    });
+    interval = window.setInterval(() => tick(), 80);
+
+    return () => {
+      window.cancelAnimationFrame(raf);
+      if (interval !== undefined) window.clearInterval(interval);
+    };
+  }, [candles, minLow, maxHigh, onDone]);
+
+  const yFor = (price: number) =>
+    PAD_T + ((maxHigh - price) / (maxHigh - minLow)) * INNER_H;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85" style={{ opacity: tourFade }}>
-      {/* skip */}
+    <div ref={rootRef} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85">
       <button
         type="button"
-        onClick={() => {
-          if (!doneRef.current) {
-            doneRef.current = true;
-            onDone();
-          }
-        }}
+        onClick={finish}
         className="absolute right-6 top-6 z-30 rounded-full border border-white/20 px-5 py-2 font-mono text-xs text-white/70 transition hover:border-white/60 hover:text-white"
       >
         skip intro →
       </button>
 
-      {/* the "browser" modal - 1:1 recreation of the site */}
       <div
         ref={modalRef}
         className="relative w-[min(1120px,94vw)] overflow-hidden rounded-2xl border border-white/15 bg-[#050505] shadow-2xl shadow-black/80"
-        style={{
-          height: 'min(700px, 84vh)',
-          opacity: modalIn,
-          transform: `scale(${0.94 + modalIn * 0.06})`,
-        }}
+        style={{ height: 'min(700px, 84vh)' }}
       >
-        {/* browser chrome */}
         <div className="flex items-center gap-3 border-b border-white/10 bg-[#0b0b0c] px-4 py-2.5">
           <div className="flex gap-1.5">
             {[0, 1, 2].map((d) => (
@@ -226,14 +291,8 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
           <span className="w-10" />
         </div>
 
-        {/* site viewport */}
         <div ref={viewportRef} className="relative h-[calc(100%-44px)] overflow-hidden">
-          <div
-            ref={innerRef}
-            className="will-change-transform"
-            style={{ transform: `translateY(${-scrollY}px)` }}
-          >
-            {/* nav */}
+          <div ref={innerRef} className="will-change-transform">
             <div className="flex items-center justify-between px-10 pt-5">
               <div className="flex items-center gap-2">
                 <svg viewBox="0 0 32 32" className="h-5 w-5" aria-hidden>
@@ -248,7 +307,6 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
               </span>
             </div>
 
-            {/* hero */}
             <div className="max-w-xl px-10 pt-10">
               <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
                 Robinhood Chain / launching soon
@@ -263,7 +321,6 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
               </p>
             </div>
 
-            {/* demo market */}
             <div className="px-10 pt-9">
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-2xl font-semibold text-white">
@@ -276,27 +333,37 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
 
               <div className="mt-3 flex items-center gap-8 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 font-mono text-[11px] text-white/55">
                 <span>
-                  demo balance: <span className="text-white">{balance.toFixed(3)} ETH</span>
+                  demo balance:{' '}
+                  <span className="text-white" ref={balanceRef}>
+                    2.000 ETH
+                  </span>
                 </span>
                 <span>
-                  your cards: <span className="text-white">{myCards}</span>
+                  your cards:{' '}
+                  <span className="text-white" ref={cardsRef}>
+                    0
+                  </span>
                 </span>
-                {bought && <span className="text-[#00bd7d]">Bought Charizard for 0.059 ETH</span>}
+                <span className="hidden text-[#00bd7d]" ref={statusRef}>
+                  Bought Charizard for 0.059 ETH
+                </span>
               </div>
 
               <div className="mt-4 grid grid-cols-3 gap-4">
                 {DEMO_CARDS.map((demo, i) => {
                   const art = arts[demo.tcgId];
                   const isCardOne = i === 0;
-                  const mine = isCardOne && bought;
-                  const price = 0.05 * (5868 / demo.launch);
+                  const mine = isCardOne && boughtRef.current;
                   return (
                     <div
                       key={demo.tcgId}
                       className="relative rounded-2xl border border-white/10 bg-white/[0.03] p-3"
                     >
-                      {mine && (
-                        <span className="absolute right-2.5 top-2.5 z-10 rounded-full bg-[#00bd7d] px-2 py-0.5 font-mono text-[9px] font-bold text-slate-950">
+                      {isCardOne && (
+                        <span
+                          ref={badgeRef}
+                          className="absolute right-2.5 top-2.5 z-10 rounded-full bg-[#00bd7d] px-2 py-0.5 font-mono text-[9px] font-bold text-slate-950 opacity-0"
+                        >
                           YOURS
                         </span>
                       )}
@@ -304,7 +371,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
                         {art?.image ? (
                           <img
                             src={getCardImageUrl({ image: art.image })}
-                            alt={art.name}
+                            alt={art.name ?? demo.tcgId}
                             className="aspect-[245/342] w-full object-cover"
                             draggable={false}
                           />
@@ -319,24 +386,29 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
                         owner: {mine ? 'You' : i === 1 ? 'Trader 1' : i === 2 ? 'Trader 2' : 'Treasury'}
                       </p>
                       <p className="mt-1 font-mono text-xs text-white">
-                        {(price * 0.985).toFixed(3)} ETH
+                        {(0.059 * (demo.launch / 5000)).toFixed(3)} ETH
                       </p>
                       <div className="mt-2 flex gap-2">
-                        {mine ? (
-                          <span className="rounded-full border border-white/15 px-3 py-1.5 text-[10px] font-semibold text-white">
-                            Sell
-                          </span>
-                        ) : (
-                          isCardOne && (
-                            <button
-                              ref={i === 0 ? buyRef : undefined}
+                        {isCardOne ? (
+                          <>
+                            <span
+                              ref={buyBtnRef}
                               data-demo-buy
-                              type="button"
-                              className="rounded-full bg-white px-4 py-1.5 text-[10px] font-semibold text-slate-950"
+                              className="inline-flex cursor-pointer items-center rounded-full bg-white px-4 py-1.5 text-[10px] font-semibold text-slate-950"
                             >
                               Buy
-                            </button>
-                          )
+                            </span>
+                            <span
+                              ref={sellBtnRef}
+                              className="hidden items-center rounded-full border border-white/15 px-3 py-1.5 text-[10px] font-semibold text-white"
+                            >
+                              Sell
+                            </span>
+                          </>
+                        ) : (
+                          <span className="inline-flex cursor-pointer items-center rounded-full bg-white px-4 py-1.5 text-[10px] font-semibold text-slate-950 opacity-70">
+                            Buy
+                          </span>
                         )}
                       </div>
                     </div>
@@ -348,152 +420,147 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
             <div className="h-16" />
           </div>
 
-          {/* click ripple */}
-          {clickFlash && cursor.x > 0 && (
-            <div
-              className="pointer-events-none absolute z-30 rounded-full border-2 border-[#00bd7d]"
-              style={{ left: cursor.x, top: cursor.y, width: 44, height: 44, marginLeft: -22, marginTop: -22 }}
-            />
-          )}
-
           {/* cursor */}
-          {elapsed >= 0.8 && elapsed < CHART_AT && cursor.x > 0 && (
-            <div className="pointer-events-none absolute z-30" style={{ left: cursor.x, top: cursor.y }}>
-              <svg width={26} height={26} viewBox="0 0 24 24" style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.85))' }}>
-                <path d="M4 2l16 12-7 1 4 7-3 1-4-7-6 5z" fill="#fff" stroke="#050505" strokeWidth={1.5} />
-              </svg>
-            </div>
-          )}
+          <div
+            ref={cursorRef}
+            className="pointer-events-none absolute left-0 top-0 z-30 opacity-0"
+          >
+            <svg width={26} height={26} viewBox="0 0 24 24" style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.85))' }}>
+              <path d="M4 2l16 12-7 1 4 7-3 1-4-7-6 5z" fill="#fff" stroke="#050505" strokeWidth={1.5} />
+            </svg>
+          </div>
+        </div>
 
-          {/* chart + card value, sliding over the mock */}
-          {elapsed >= CHART_AT && (
-            <div
-              className="absolute inset-x-0 bottom-0 top-10 z-20 flex items-center justify-center gap-4 bg-[#050505]"
-              style={{ opacity: chartIn, transform: `translateY(${(1 - chartIn) * 24}px)` }}
-            >
-              {/* candlestick chart */}
-              <div className="rounded-2xl border border-white/10 bg-[#0b0e13] p-4">
-                <div className="flex items-center justify-between px-1 pb-2">
-                  <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-white/50">
-                    POKE market cap - Robinhood Chain
-                  </span>
-                  <span
-                    className="font-mono text-sm"
-                    style={{ color: shownClose >= (candles[visible - 2]?.close ?? 0) ? '#16c784' : '#ea3943' }}
-                  >
-                    {usd(shownClose)}
-                  </span>
-                </div>
-                <svg width={chartW} height={chartH}>
-                  {[0.2, 0.4, 0.6, 0.8].map((g) => (
-                    <line
-                      key={g}
-                      x1={padL}
-                      x2={chartW - padR}
-                      y1={padT + innerH * g}
-                      y2={padT + innerH * g}
-                      stroke="rgba(255,255,255,0.06)"
-                    />
-                  ))}
-                  {candles.slice(0, visible).map((c, i) => {
-                    const x = padL + i * slot + slot / 2;
-                    const isLast = i === visible - 1;
-                    const close = isLast && frac > 0 ? c.open + (c.close - c.open) * frac : c.close;
-                    const top = yOf(Math.max(c.open, close));
-                    const bottom = yOf(Math.min(c.open, close));
-                    const up = close >= c.open;
-                    const color = up ? '#16c784' : '#ea3943';
-                    return (
-                      <g key={i}>
-                        <line x1={x} x2={x} y1={yOf(c.high)} y2={yOf(c.low)} stroke={color} strokeWidth={1} />
-                        <rect
-                          x={x - bodyW / 2}
-                          y={top}
-                          width={bodyW}
-                          height={Math.max(1, bottom - top)}
-                          fill={color}
-                        />
-                      </g>
-                    );
-                  })}
-                  {lastVisible && (
-                    <>
-                      <line
-                        x1={padL}
-                        x2={chartW - padR}
-                        y1={yOf(shownClose)}
-                        y2={yOf(shownClose)}
-                        stroke="rgba(255,255,255,0.25)"
-                        strokeDasharray="4 4"
-                      />
+        {/* chart + card value */}
+        <div
+          ref={chartRef}
+          className="pointer-events-none absolute inset-x-0 bottom-0 top-10 z-20 flex items-center justify-center gap-4 bg-[#050505] opacity-0"
+        >
+          <div className="rounded-2xl border border-white/10 bg-[#0b0e13] p-4">
+            <div className="flex items-center justify-between px-1 pb-2">
+              <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-white/50">
+                POKE market cap - Robinhood Chain
+              </span>
+              <span className="font-mono text-sm text-white" ref={mcValueRef}>
+                $5,000
+              </span>
+            </div>
+            <svg width={CHART_W} height={CHART_H}>
+              <defs>
+                <clipPath id="introCandleClip">
+                  <rect ref={clipRectRef} x={PAD_L} y={0} width={0} height={CHART_H} />
+                </clipPath>
+              </defs>
+              {[0.2, 0.4, 0.6, 0.8].map((g) => (
+                <line
+                  key={g}
+                  x1={PAD_L}
+                  x2={CHART_W - PAD_R}
+                  y1={PAD_T + INNER_H * g}
+                  y2={PAD_T + INNER_H * g}
+                  stroke="rgba(255,255,255,0.06)"
+                />
+              ))}
+              <g clipPath="url(#introCandleClip)">
+                {candles.map((c, i) => {
+                  const x = PAD_L + i * SLOT + SLOT / 2;
+                  const up = c.close >= c.open;
+                  const color = up ? '#16c784' : '#ea3943';
+                  const top = yFor(Math.max(c.open, c.close));
+                  const bottom = yFor(Math.min(c.open, c.close));
+                  return (
+                    <g key={i}>
+                      <line x1={x} x2={x} y1={yFor(c.high)} y2={yFor(c.low)} stroke={color} strokeWidth={1} />
                       <rect
-                        x={chartW - padR + 6}
-                        y={yOf(shownClose) - 10}
-                        width={76}
-                        height={20}
-                        rx={4}
-                        fill={shownClose >= lastVisible.open ? '#16c784' : '#ea3943'}
+                        x={x - BODY_W / 2}
+                        y={top}
+                        width={BODY_W}
+                        height={Math.max(1, bottom - top)}
+                        fill={color}
                       />
-                      <text
-                        x={chartW - padR + 44}
-                        y={yOf(shownClose) + 4}
-                        textAnchor="middle"
-                        fontSize={11}
-                        fontFamily="monospace"
-                        fill="#050505"
-                      >
-                        {usd(shownClose)}
-                      </text>
-                    </>
-                  )}
-                  {[0, 8, 16, 24, 32, 40, 47].map((i) => (
-                    <text
-                      key={i}
-                      x={padL + i * slot + slot / 2}
-                      y={chartH - 12}
-                      textAnchor="middle"
-                      fontSize={10}
-                      fontFamily="monospace"
-                      fill="rgba(255,255,255,0.35)"
-                    >
-                      {timeLabel(i)}
-                    </text>
-                  ))}
-                </svg>
-              </div>
-
-              {/* card value panel */}
-              <div className="w-[280px] rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center">
-                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-white/50">
-                  Card #01 value
-                </p>
-                {arts['base1-4']?.image && (
-                  <img
-                    src={getCardImageUrl({ image: arts['base1-4'].image })}
-                    alt="card"
-                    className="mx-auto mt-4 w-32 rounded-lg border border-white/15"
-                    draggable={false}
-                  />
-                )}
-                <p className="mt-4 font-display text-3xl font-semibold text-white">
-                  {usd(cardUsd)}
-                </p>
-                <span
-                  className="mt-3 inline-block rounded-full px-3 py-1 font-mono text-xs font-bold"
-                  style={{
-                    background: cardPct >= 0 ? '#00bd7d' : '#ea3943',
-                    color: '#050505',
-                  }}
+                    </g>
+                  );
+                })}
+              </g>
+              <line
+                ref={lastLineRef}
+                x1={PAD_L}
+                x2={CHART_W - PAD_R}
+                y1={yFor(candles[0].close)}
+                y2={yFor(candles[0].close)}
+                stroke="rgba(255,255,255,0.25)"
+                strokeDasharray="4 4"
+              />
+              <g ref={chipGroupRef}>
+                <rect ref={chipRectRef} x={CHART_W - PAD_R + 6} y={-10} width={76} height={20} rx={4} fill="#16c784" />
+                <text
+                  ref={chipTextRef}
+                  x={CHART_W - PAD_R + 44}
+                  y={4}
+                  textAnchor="middle"
+                  fontSize={11}
+                  fontFamily="monospace"
+                  fill="#050505"
                 >
-                  {cardPct >= 0 ? '+' : ''}
-                  {cardPct.toFixed(1)}% SINCE MINT
-                </span>
-                <p className="mt-4 font-mono text-[11px] leading-relaxed text-white/40">
-                  your card tracks the chart - up and down, together
-                </p>
-              </div>
-            </div>
-          )}
+                  $5,000
+                </text>
+              </g>
+              {[0, 8, 16, 24, 32, 40, 47].map((i) => (
+                <text
+                  key={i}
+                  x={PAD_L + i * SLOT + SLOT / 2}
+                  y={CHART_H - 12}
+                  textAnchor="middle"
+                  fontSize={10}
+                  fontFamily="monospace"
+                  fill="rgba(255,255,255,0.35)"
+                >
+                  {timeLabel(i)}
+                </text>
+              ))}
+            </svg>
+          </div>
+
+          <div className="w-[280px] rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-white/50">
+              Card #01 value
+            </p>
+            {arts['base1-4']?.image && (
+              <img
+                src={getCardImageUrl({ image: arts['base1-4'].image })}
+                alt="card"
+                className="mx-auto mt-4 w-32 rounded-lg border border-white/15"
+                draggable={false}
+              />
+            )}
+            <p className="mt-4 font-display text-3xl font-semibold text-white" ref={cardValueRef}>
+              $150
+            </p>
+            <span
+              className="mt-3 inline-block rounded-full px-3 py-1 font-mono text-xs font-bold text-slate-950"
+              ref={cardPctRef}
+            >
+              +0.0% SINCE MINT
+            </span>
+            <p className="mt-4 font-mono text-[11px] leading-relaxed text-white/40">
+              your card tracks the chart - up and down, together
+            </p>
+          </div>
+        </div>
+
+        {/* tagline */}
+        <div
+          ref={taglineRef}
+          className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/70 opacity-0"
+        >
+          <div className="text-center">
+            <p className="font-display text-5xl font-semibold text-white">
+              Every milestone, a real Pokemon card.
+            </p>
+            <p className="mt-4 font-mono text-sm tracking-[0.22em] text-[#00bd7d]">
+              THE LOOP IS YOURS
+            </p>
+          </div>
         </div>
       </div>
     </div>

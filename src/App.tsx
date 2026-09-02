@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import CardCoverflow from './components/CardCoverflow';
 import DemoMarket from './components/DemoMarket';
 import WalletButton from './components/WalletButton';
 import { getCardWall } from './services/tcgdex';
 import type { CardListItem } from './types/tcgdex';
+
+const IntroTour = lazy(() => import('./components/IntroTour'));
 
 function PokeballMark({ className }: { className?: string }) {
   return (
@@ -42,6 +44,14 @@ const HOW_IT_WORKS = [
 
 export default function App() {
   const [wallItems, setWallItems] = useState<CardListItem[]>([]);
+  const [showIntro, setShowIntro] = useState(
+    () => !localStorage.getItem('pokecard-intro-seen'),
+  );
+
+  const closeIntro = useCallback(() => {
+    localStorage.setItem('pokecard-intro-seen', '1');
+    setShowIntro(false);
+  }, []);
 
   // decorative hero wall: one cheap pool request, failures are silent
   useEffect(() => {
@@ -58,6 +68,11 @@ export default function App() {
 
   return (
     <div className="app-shell min-h-screen">
+      {showIntro && (
+        <Suspense fallback={<div className="fixed inset-0 z-[60] bg-black" />}>
+          <IntroTour onDone={closeIntro} />
+        </Suspense>
+      )}
       <div className="mx-auto max-w-6xl px-6">
         <nav className="flex items-center justify-between py-6">
           <div className="flex items-center gap-2.5">

@@ -147,7 +147,7 @@ export default function CardDetail({
               </div>
             </div>
             <p className="mt-4 text-center font-mono text-[11px] text-white/35">
-              tap the card to flip it
+              front / back
             </p>
           </div>
 

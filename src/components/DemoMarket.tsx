@@ -153,9 +153,6 @@ export default function DemoMarket() {
           <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight">
             Buy, sell, trade
           </h2>
-          <p className="mt-1.5 text-sm text-white/45">
-            tap a card to open it
-          </p>
         </div>
         <div className="flex items-center gap-2.5 font-mono text-xs text-white/45">
           <span className="status-dot animate-pulse" aria-hidden />

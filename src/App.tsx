@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import CardCoverflow from './components/CardCoverflow';
 import DemoMarket from './components/DemoMarket';
 import WalletButton from './components/WalletButton';
@@ -44,14 +44,7 @@ const HOW_IT_WORKS = [
 
 export default function App() {
   const [wallItems, setWallItems] = useState<CardListItem[]>([]);
-  const [showIntro, setShowIntro] = useState(
-    () => !localStorage.getItem('pokecard-intro-seen'),
-  );
-
-  const closeIntro = useCallback(() => {
-    localStorage.setItem('pokecard-intro-seen', '1');
-    setShowIntro(false);
-  }, []);
+  const [showTour, setShowTour] = useState(false);
 
   // decorative hero wall: one cheap pool request, failures are silent
   useEffect(() => {
@@ -68,9 +61,9 @@ export default function App() {
 
   return (
     <div className="app-shell min-h-screen">
-      {showIntro && (
+      {showTour && (
         <Suspense fallback={<div className="fixed inset-0 z-[60] bg-black" />}>
-          <IntroTour onDone={closeIntro} />
+          <IntroTour onDone={() => setShowTour(false)} />
         </Suspense>
       )}
       <div className="mx-auto max-w-6xl px-6">
@@ -81,7 +74,19 @@ export default function App() {
               PokeCard Lab
             </span>
           </div>
-          <WalletButton />
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowTour(true)}
+              className="btn btn-ghost !gap-2 !px-4 !py-2.5 text-[13px]"
+            >
+              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden>
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              How it works
+            </button>
+            <WalletButton />
+          </div>
         </nav>
 
         <header className="grid items-center gap-10 pb-10 pt-8 lg:grid-cols-[1.02fr_0.98fr] lg:pt-10">

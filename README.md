@@ -1,10 +1,30 @@
 # PokeCard Lab
 
-A live Pokémon TCG card explorer built with Vite, React 19, TypeScript, and
-Tailwind CSS v4. Card data and artwork come from the public, keyless
-[TCGdex API](https://tcgdex.dev). Design language: black canvas, Oswald
-display type, JetBrains Mono terminal accents, and interactive 3D tilt cards
-with holographic foil (inspired by pokepad.org and scrydex.com).
+A live Pokemon TCG card explorer and milestone-card market built with Vite,
+React 19, TypeScript, React Router, and Tailwind CSS v4. Card data and artwork
+come from the public, keyless [TCGdex API](https://tcgdex.dev). Design
+language: black canvas, Oswald display type, JetBrains Mono terminal accents,
+and interactive 3D tilt cards with holographic foil (inspired by pokepad.org
+and scrydex.com).
+
+## Pages
+
+| Route | Purpose |
+| --- | --- |
+| `/` | Hero, how it works, and the buy / sell / trade market |
+| `/portfolio` | Owned cards, cost basis, unrealized vs realized P&L, live swap offers |
+| `/activity` | Mints, buys, sells, and swaps (localStorage in demo, contract logs when live) |
+| `/roadmap` | Full 8-slot milestone ladder with live market-cap progress |
+| `/token` | Get POKE: how to buy, contract addresses, add-to-wallet, DEX link |
+
+The market runs in two modes. **Demo mode** (default): a drifting market-cap
+ticker, three test cards priced with the contract formula
+(`basePrice x marketCap / launchCap`), and buy / sell / trade against a
+localStorage portfolio (`src/demo/`). **Live mode**: once the contracts are
+deployed and the `VITE_*` addresses are set in `.env`, the same UI switches
+to on-chain prices, ownership, treasury sales (`CardSale.buy`), peer-to-peer
+listings and card-for-card swaps (`CardSwap`), and contract-event activity.
+No code changes are needed to flip modes.
 
 ## Run
 
@@ -69,14 +89,16 @@ trade flows against a localStorage portfolio. When the contracts deploy,
 | `MilestoneCards` | ERC-721 + ERC-2981; one card per market-cap milestone, mints exactly once, keeper-gated, cards mint to the treasury for sale |
 | `UniswapV4SpotOracle` | Production `IMilestonePriceOracle`: POKE/WETH v4 pool price x Chainlink ETH/USD x totalSupply. Spot reads are smoothed by the keeper + confirm window; swap in a TWAP variant for fully trustless pricing |
 | `CardSale` | Treasury sale with pricing that tracks the token: `price = basePrice x currentMarketCap / card's launch milestone` |
+| `CardSwap` | Peer-to-peer secondary market: escrowed fixed-price listings with ERC-2981 royalty splits, plus card-for-card swap offers with an optional ETH ask |
 | `MockMilestonePriceOracle`, `MockStateView`, `MockAggregator` | Test doubles |
 
 ```bash
 cd contracts
 cp .env.example .env        # add a funded PRIVATE_KEY for testnet
 npm install
-npm test                    # 20 tests: ladder, one-time mint, keeper gate,
-                            # confirm window, oracle math, sale + royalties
+npm test                    # 26 tests: ladder, one-time mint, keeper gate,
+                            # confirm window, oracle math, sale + royalties,
+                            # escrow listings, P2P swaps
 npm run metadata            # generate card metadata (+ Pinata upload with PINATA_JWT)
 npm run deploy:testnet      # MOCK_ORACLE=1 by default; DEPLOY_SALE=1 adds CardSale
 npm run keeper              # poll oracle, confirm crossings, mint on milestones
@@ -89,12 +111,18 @@ written to `deployments/<network>.json`.
 
 ### Frontend wiring
 
-The app already runs inside `WagmiProvider` + `QueryClientProvider`
-(`src/web3/config.ts`, chains defined in `src/web3/chains.ts`, injected
-connector covers MetaMask/Rabby/Robinhood Wallet). After deploying, set
-`VITE_CARDS_ADDRESS`, `VITE_ORACLE_ADDRESS`, `VITE_TOKEN_ADDRESS` in `.env`
-and use the `useMilestoneState()` hook (`src/web3/useMilestoneState.ts`) to
-read live milestone data in components.
+The app runs inside `WagmiProvider` + `QueryClientProvider` + RainbowKit
+(`src/web3/config.ts`, chains defined in `src/web3/chains.ts`) and a shared
+`MarketProvider` (`src/state/MarketProvider.tsx`) that exposes market data,
+portfolio, activity, and trade actions to every page. After deploying, set
+`VITE_TOKEN_ADDRESS`, `VITE_CARDS_ADDRESS`, `VITE_ORACLE_ADDRESS`,
+`VITE_SALE_ADDRESS`, and `VITE_SWAP_ADDRESS` in `.env` (addresses are printed
+by the deploy script and saved to `deployments/<network>.json`). When all
+addresses are present the site switches to live mode automatically:
+`useMilestoneState` powers the hero/roadmap, `useCardMarket` reads
+prices/ownership/listings, `useMarketWrites` sends buy/list/swap
+transactions, and `/activity` reads contract logs. `VITE_DEX_POOL_URL`
+(optionally) links the launch pool on `/token`.
 
 ## Extending toward a game
 

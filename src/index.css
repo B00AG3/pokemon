@@ -175,6 +175,13 @@ input:focus-visible {
   position: relative;
   height: 460px;
   perspective: 1300px;
+  /*
+   * Cards fan out along the belt for thousands of pixels and mid-rotation
+   * frames project far past the stage; without clipping all of it becomes
+   * page scroll height (the deadspace below the market grid).
+   */
+  overflow: hidden;
+  overflow: clip;
 }
 
 .orbit {

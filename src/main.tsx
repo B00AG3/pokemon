@@ -6,6 +6,7 @@ import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit'
 import '@rainbow-me/rainbowkit/styles.css'
 import './index.css'
 import App from './App.tsx'
+import { MarketProvider } from './state/MarketProvider.tsx'
 import { queryClient, wagmiConfig } from './web3/config'
 
 createRoot(document.getElementById('root')!).render(
@@ -18,7 +19,9 @@ createRoot(document.getElementById('root')!).render(
             accentColorForeground: '#050505',
           })}
         >
-          <App />
+          <MarketProvider>
+            <App />
+          </MarketProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

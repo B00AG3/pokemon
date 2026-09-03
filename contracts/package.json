@@ -6,6 +6,7 @@
     "test": "hardhat test",
     "deploy:testnet": "hardhat run scripts/deploy.ts --network robinhoodTestnet",
     "deploy:mainnet": "hardhat run scripts/deploy.ts --network robinhoodMainnet",
+    "seed:testnet": "hardhat run scripts/seed-testnet.ts --network robinhoodTestnet",
     "keeper": "ts-node scripts/keeper.ts",
     "metadata": "ts-node scripts/generate-metadata.ts"
   },

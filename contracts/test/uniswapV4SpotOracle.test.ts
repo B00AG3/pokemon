@@ -86,7 +86,11 @@ describe('UniswapV4SpotOracle', () => {
         fixtureFor(pokeIsCurrency0),
       );
 
-      const sqrtP = pokeIsCurrency0
+      // the fixture only guarantees the two iterations cover both pool
+      // orientations; deterministic token addresses decide which one runs
+      // here, so read the real placement back from the oracle
+      const pokeIsC0 = await oracle.pokeIsCurrency0();
+      const sqrtP = pokeIsC0
         ? isqrt(PRICE_RAW * 2n ** 192n) + 1n // round up: floor(sqrtP^2 / 2^192) must equal PRICE_RAW
         : isqrt(2n ** 192n / PRICE_RAW);
       await stateView.setSqrtPriceX96(poolId, sqrtP);

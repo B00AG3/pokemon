@@ -71,6 +71,12 @@ async function main() {
     console.log('CardSale:', saleAddress, '(treasury approved)');
   }
 
+  // Peer-to-peer secondary market (escrowed listings + card-for-card swaps).
+  const swap = await (await ethers.getContractFactory('CardSwap')).deploy(cardsAddress);
+  await swap.waitForDeployment();
+  const swapAddress = await swap.getAddress();
+  console.log('CardSwap:', swapAddress);
+
   const record = {
     network: network.name,
     chainId: Number((await ethers.provider.getNetwork()).chainId),
@@ -82,6 +88,7 @@ async function main() {
     mockOracle: mock,
     cards: cardsAddress,
     sale: saleAddress,
+    swap: swapAddress,
     thresholds: thresholds.map(String),
     confirmWindow: String(confirmWindow),
     baseTokenURI,

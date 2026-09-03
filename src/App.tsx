@@ -1,146 +1,45 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
-import CardCoverflow from './components/CardCoverflow';
-import DemoMarket from './components/DemoMarket';
-import WalletButton from './components/WalletButton';
-import { getCardWall } from './services/tcgdex';
-import type { CardListItem } from './types/tcgdex';
+import { useEffect, useState } from 'react';
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
+import Nav from './components/Nav';
+import Home from './pages/Home';
+import Portfolio from './pages/Portfolio';
+import Activity from './pages/Activity';
+import Roadmap from './pages/Roadmap';
+import TokenPage from './pages/TokenPage';
 
-const IntroTour = lazy(() => import('./components/IntroTour'));
-
-function PokeballMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 32 32" className={className} aria-hidden>
-      <circle
-        cx="16"
-        cy="16"
-        r="10"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path d="M6 16h6M20 16h6" stroke="currentColor" strokeWidth="2" />
-      <circle cx="16" cy="16" r="3.2" fill="currentColor" />
-    </svg>
-  );
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
 }
 
-const HOW_IT_WORKS = [
-  {
-    step: '1',
-    title: 'Launch',
-    body: 'One ticker goes live on the Robinhood Chain. Holding the token means holding the collection.',
-  },
-  {
-    step: '2',
-    title: 'Mint',
-    body: 'Every market cap milestone mints the next Pokemon card into the collection. Supply is gated by the chart, not by us.',
-  },
-  {
-    step: '3',
-    title: 'Trade',
-    body: 'Cards are yours to buy, sell, or trade, and every card tracks the token - so the whole collection climbs with the chart.',
-  },
-];
-
-export default function App() {
-  const [wallItems, setWallItems] = useState<CardListItem[]>([]);
+function Shell() {
   const [showTour, setShowTour] = useState(false);
-
-  // decorative hero wall: one cheap pool request, failures are silent
-  useEffect(() => {
-    getCardWall(48)
-      .then(setWallItems)
-      .catch(() => {});
-  }, []);
-
-  // NOTE: search, filters, hand-drawing, and the card gallery are parked
-  // until the token backend lands. The service layer (src/services/tcgdex.ts)
-  // and the gallery components are kept ready in the codebase.
-
-  const heroCards = useMemo(() => wallItems, [wallItems]);
 
   return (
     <div className="app-shell min-h-screen">
-      {showTour && (
-        <Suspense fallback={<div className="fixed inset-0 z-[60] bg-black" />}>
-          <IntroTour onDone={() => setShowTour(false)} />
-        </Suspense>
-      )}
       <div className="mx-auto max-w-6xl px-6">
-        <nav className="flex items-center justify-between py-6">
-          <div className="flex items-center gap-2.5">
-            <PokeballMark className="h-6 w-6 text-white" />
-            <span className="text-[15px] font-semibold tracking-tight">
-              PokeCard Lab
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setShowTour(true)}
-              className="btn btn-ghost !gap-2 !px-4 !py-2.5 text-[13px]"
-            >
-              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden>
-                <path d="M8 5v14l11-7z" />
-              </svg>
-              How it works
-            </button>
-            <WalletButton />
-          </div>
-        </nav>
-
-        <header className="grid items-center gap-10 pb-10 pt-8 lg:grid-cols-[1.02fr_0.98fr] lg:pt-10">
-          <div className="max-w-xl">
-            <h1 className="font-display text-5xl font-semibold leading-[1.06] tracking-tight sm:text-6xl xl:text-[4.2rem]">
-              Every milestone,
-              <br />a real Pokemon card.
-            </h1>
-            <p className="mt-6 max-w-md text-[15px] font-light leading-relaxed text-white/55">
-              The token launches on the Robinhood Chain. As market cap climbs,
-              each milestone mints the next Pokemon card into the collection -
-              minted once, then yours to buy, sell, or trade as it rides the
-              token up.
-            </p>
-          </div>
-
-          <CardCoverflow items={heroCards} />
-        </header>
-
-        <section id="how" className="scroll-mt-10 pb-12 pt-2">
-          <p className="eyebrow mb-3">01 / The idea</p>
-          <h2 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">
-            How it works
-          </h2>
-
-          <div className="mt-8 grid gap-10 md:grid-cols-3">
-            {HOW_IT_WORKS.map((item) => (
-              <div key={item.step}>
-                <p className="font-mono text-xs text-white/30">{item.step}</p>
-                <h3 className="mt-3 text-[15px] font-semibold tracking-tight">
-                  {item.title}
-                </h3>
-                <p className="mt-2.5 text-sm font-light leading-relaxed text-white/50">
-                  {item.body}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <div className="terminal mt-10 p-7 sm:p-9">
-            <p className="eyebrow">card #01 / single mint</p>
-            <p className="mt-4 max-w-2xl font-display text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
-              Card #01 is the cheapest this collection will ever be.
-            </p>
-            <p className="mt-4 max-w-xl text-sm font-light leading-relaxed text-white/50">
-              It mints at a $5,000 market cap and never again. If the token
-              runs to $1,000,000, that entry sits 200x under the same chart -
-              and every milestone after it prices in higher.
-            </p>
-          </div>
-        </section>
-
-        <DemoMarket />
+        <Nav onHowItWorks={() => setShowTour(true)} />
+        <ScrollToTop />
+        <Routes>
+          <Route path="/" element={<Home showTour={showTour} onTourDone={() => setShowTour(false)} />} />
+          <Route path="/portfolio" element={<Portfolio />} />
+          <Route path="/activity" element={<Activity />} />
+          <Route path="/roadmap" element={<Roadmap />} />
+          <Route path="/token" element={<TokenPage />} />
+          <Route path="*" element={<Home showTour={showTour} onTourDone={() => setShowTour(false)} />} />
+        </Routes>
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Shell />
+    </BrowserRouter>
   );
 }

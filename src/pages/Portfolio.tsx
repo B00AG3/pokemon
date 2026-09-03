@@ -217,7 +217,7 @@ export default function Portfolio() {
             </h2>
             {market.incomingOffers.length === 0 ? (
               <p className="mt-3 font-mono text-xs text-white/40">
-                no open offers target your cards right now
+                no open offers target your cards
               </p>
             ) : (
               <ul className="mt-3 space-y-3">

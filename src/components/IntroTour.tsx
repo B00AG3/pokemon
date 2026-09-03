@@ -543,7 +543,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
               +0.0% SINCE MINT
             </span>
             <p className="mt-4 font-mono text-[11px] leading-relaxed text-white/40">
-              your card tracks the chart - up and down, together
+              your card tracks the chart, up and down
             </p>
           </div>
         </div>
@@ -558,7 +558,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
               Every milestone, a real Pokemon card.
             </p>
             <p className="mt-4 font-mono text-sm tracking-[0.22em] text-[#00bd7d]">
-              THE LOOP IS YOURS
+              THE COLLECTION IS YOURS
             </p>
           </div>
         </div>

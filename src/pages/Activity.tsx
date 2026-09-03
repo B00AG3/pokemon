@@ -66,7 +66,7 @@ export default function Activity() {
       {market.activity.length === 0 ? (
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-8 text-center">
           <p className="text-sm text-white/55">
-            No activity yet - the first trade writes the first line.
+            No activity yet. Mints, sales, and swaps will appear here.
           </p>
         </div>
       ) : (

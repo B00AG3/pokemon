@@ -191,14 +191,14 @@ export default function CardDetail({
             <p className="mt-4 text-sm font-light leading-relaxed text-white/60">
               Currently held by{' '}
               <span className="text-white">{card.ownerLabel}</span>. Each card
-              mints exactly once and can be bought, sold, or traded with other
-              holders - the cheapest it will ever be is the day it mints.
+              mints exactly once - the cheapest it will ever be is the day it
+              mints.
             </p>
 
             <div className="mt-8">
               <Accordion label={`The set: ${card.setName ?? 'Unknown'}`}>
                 {card.setName
-                  ? `From the ${card.setName} expansion - one of the most iconic releases in the TCG.`
+                  ? `From the ${card.setName} expansion of the Pokemon TCG.`
                   : 'Set information unavailable for this card.'}
               </Accordion>
               <Accordion label={`Rarity: ${card.rarity ?? 'Unknown'}`}>
@@ -208,13 +208,13 @@ export default function CardDetail({
               <Accordion label={`Milestone: ${card.launchMc.toLocaleString('en-US')} market cap`}>
                 This card minted when the token crossed{' '}
                 ${card.launchMc.toLocaleString('en-US')}. The current market cap
-                is ${marketCap.toLocaleString('en-US')} - the gap between the
-                two is exactly how much the card has appreciated.
+                is ${marketCap.toLocaleString('en-US')}, and card prices scale
+                with that ratio: at twice the launch cap, a card trades at twice
+                its base price.
               </Accordion>
               <Accordion label="Ownership">
-                Held by {card.ownerLabel}. Cards are yours to buy, sell, or
-                trade with other holders - every transfer settles instantly on
-                the Robinhood Chain.
+                Held by {card.ownerLabel}. Sell to the market or swap with
+                another holder - every transfer settles on the Robinhood Chain.
               </Accordion>
             </div>
 
@@ -298,7 +298,7 @@ export default function CardDetail({
             )}
             {!card.isMine && tradeOptions.length === 0 && (
               <p className="mt-8 border-t border-white/10 pt-6 font-mono text-xs text-white/40">
-                buy a card first to unlock trading with other holders.
+                buy a card first to trade with other holders.
               </p>
             )}
 

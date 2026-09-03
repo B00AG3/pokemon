@@ -24,7 +24,7 @@ const STEPS = [
   {
     step: '4',
     title: 'Buy the cards',
-    body: 'Milestone cards go on sale priced off the same chart. Buy, sell, or trade them as the collection climbs.',
+    body: 'Milestone cards go on sale priced off the same chart. Sell them or swap them as the collection climbs.',
   },
 ];
 
@@ -104,7 +104,7 @@ export default function TokenPage() {
           Get POKE
         </h1>
         <p className="mt-3 max-w-xl text-sm font-light leading-relaxed text-white/55">
-          One token, one billion supply, one collection. Holding POKE is a
+          One billion POKE, one collection. Holding POKE is a
           stake in the chart that mints every milestone card - and every card
           price is derived from the same market cap.
         </p>

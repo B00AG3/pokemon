@@ -22,7 +22,7 @@ const HOW_IT_WORKS = [
   {
     step: '3',
     title: 'Trade',
-    body: 'Cards are yours to buy, sell, or trade, and every card tracks the token - so the whole collection climbs with the chart.',
+    body: 'Sell any card or swap it with another holder. Every card tracks the token, so the whole collection climbs with the chart.',
   },
 ];
 
@@ -111,8 +111,8 @@ export default function Home({
           </p>
           <p className="mt-4 max-w-xl text-sm font-light leading-relaxed text-white/50">
             It mints at a $5,000 market cap and never again. If the token
-            runs to $1,000,000, that entry sits 200x under the same chart -
-            and every milestone after it prices in higher.
+            runs to $1,000,000, that card trades at 200x its mint price -
+            and each later milestone mints at a higher base price.
           </p>
         </div>
       </section>

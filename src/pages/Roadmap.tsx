@@ -112,8 +112,8 @@ export default function Roadmap() {
       </ol>
 
       <p className="mt-6 max-w-2xl text-sm font-light leading-relaxed text-white/50">
-        Each card mints exactly once, ever, to the treasury, then is yours to
-        buy, sell, or trade. Prices scale with the same chart: a card that
+        Each card mints exactly once, to the treasury, then trades on the
+        open market. Prices scale with the same chart: a card that
         launched at {formatUsd(5000)} is quoted at 200x its base price when the
         token reaches {formatUsd(1000000)}.
       </p>

@@ -325,7 +325,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
         } else if (card.listingPriceEth) {
           await writes.buyListing(BigInt(card.tokenId), parseEther(card.listingPriceEth.toFixed(18)));
         } else {
-          flash(`${card.name} is not listed for sale right now`, setNotice);
+          flash(`${card.name} is not listed for sale`, setNotice);
           return;
         }
         done(`Bought ${card.name}`);

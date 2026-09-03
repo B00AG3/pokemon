@@ -96,18 +96,23 @@ trade flows against a localStorage portfolio. When the contracts deploy,
 cd contracts
 cp .env.example .env        # add a funded PRIVATE_KEY for testnet
 npm install
-npm test                    # 26 tests: ladder, one-time mint, keeper gate,
+npm test                    # 29 tests: ladder, one-time mint, keeper gate,
                             # confirm window, oracle math, sale + royalties,
-                            # escrow listings, P2P swaps
+                            # escrow listings, P2P swaps, pause stops
 npm run metadata            # generate card metadata (+ Pinata upload with PINATA_JWT)
 npm run deploy:testnet      # MOCK_ORACLE=1 by default; DEPLOY_SALE=1 adds CardSale
-npm run keeper              # poll oracle, confirm crossings, mint on milestones
+npm run seed:testnet        # mint the first cards through the keeper + list them
+npx hardhat run scripts/rehearse-transactions.ts --network robinhoodTestnet
+                            # full buy/sell/trade rehearsal with royalty asserts
+npm run keeper              # poll oracle, confirm crossings, mint + list on milestones
 ```
 
 The keeper flow: `confirmCrossing()` records when the market cap rises above
 the next threshold; once `confirmWindow` seconds pass and the cap is still
-above it, `mintNext()` mints card #(index+1) to the treasury. Addresses are
-written to `deployments/<network>.json`.
+above it, `mintNext()` mints card #(index+1) to the treasury and lists it on
+CardSale. Addresses are written to `deployments/<network>.json`. All three
+core contracts have owner-controlled pause emergency-stops. The mainnet
+launch procedure lives in [docs/LAUNCH.md](docs/LAUNCH.md).
 
 ### Frontend wiring
 

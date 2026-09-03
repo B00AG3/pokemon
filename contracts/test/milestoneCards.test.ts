@@ -69,6 +69,26 @@ describe('MilestoneCards', () => {
     );
   });
 
+  it('pauses minting as an emergency stop and unpauses to restore', async () => {
+    const { oracle, cards, keeper, other } = await loadFixture(deployFixture);
+    await oracle.setMarketCap(5000n * ONE);
+
+    await expect(cards.connect(other).pause()).to.be.revertedWithCustomError(
+      cards,
+      'OwnableUnauthorizedAccount',
+    );
+    await cards.pause();
+    await expect(cards.connect(keeper).mintNext()).to.be.revertedWithCustomError(
+      cards,
+      'EnforcedPause',
+    );
+    // confirmations still record while paused
+    await cards.connect(keeper).confirmCrossing();
+    await cards.unpause();
+    await cards.connect(keeper).mintNext();
+    expect(await cards.totalMinted()).to.equal(1n);
+  });
+
   it('mints card 01 exactly once at the first milestone', async () => {
     const { oracle, cards, keeper, owner } = await loadFixture(deployFixture);
     await oracle.setMarketCap(5000n * ONE);

@@ -1,15 +1,15 @@
 {
   "network": "robinhoodTestnet",
   "chainId": 46630,
-  "deployedAt": "2026-09-03T09:57:42.839Z",
+  "deployedAt": "2026-09-03T11:32:06.302Z",
   "deployer": "0xb60a984E235Dab1aE57F99398A5229f1116d9972",
-  "keeper": "0xb60a984E235Dab1aE57F99398A5229f1116d9972",
-  "token": "0x9610454e25551B2317973fA831450dd198F9F173",
-  "oracle": "0x5583630Cb2Fe0Ee943cA724Ad4fFfaB23e3f856c",
+  "keeper": "0xD805A36605391b1ed8C3E7d1C846d2D161541d6f",
+  "token": "0x4a780125441807c1F46fFaFa2d6F9af3c5678118",
+  "oracle": "0xCF15bA6Fb5bD8051D254F1Fb044100f9275B4dC7",
   "mockOracle": true,
-  "cards": "0xA45e5d47D6147256B5497Be598AC04B3dA4c3Fe3",
-  "sale": "0x583380c8cAF79a0C0A2fEB4Fc414E3d590A5D019",
-  "swap": "0xcF146EbC7d4919661298F9601bcF63f5929c5A3b",
+  "cards": "0x946A9d58FD41F0821807847DFf93dB097E51cF2b",
+  "sale": "0x2Ff07B5696B5A3A0BE91f02A0C77CD5293AB41a5",
+  "swap": "0xD8CCb099476A02530bc9e402aF5a8eca2AC0dEb0",
   "thresholds": [
     "5000000000000000000000",
     "10000000000000000000000",
@@ -20,6 +20,6 @@
     "500000000000000000000000",
     "1000000000000000000000000"
   ],
-  "confirmWindow": "0",
+  "confirmWindow": "60",
   "baseTokenURI": "ipfs://pokecard-lab/"
 }

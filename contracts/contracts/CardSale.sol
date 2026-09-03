@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {ReentrancyGuard} from '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
+import {Pausable} from '@openzeppelin/contracts/utils/Pausable.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IMilestonePriceOracle} from './IMilestonePriceOracle.sol';
@@ -19,8 +20,11 @@ import {MilestoneCards} from './MilestoneCards.sol';
  * cheapest it will ever be" story. Every card can be bought from the
  * treasury once; secondary trading then happens on marketplaces (OpenSea
  * supports Robinhood Chain) with ERC-2981 royalties applied there.
+ *
+ * Pausable as an emergency stop: while paused, buys halt but nothing is
+ * lost - the owner can unpause at any time.
  */
-contract CardSale is Ownable, ReentrancyGuard {
+contract CardSale is Ownable, Pausable, ReentrancyGuard {
     MilestoneCards public immutable cards;
     IMilestonePriceOracle public immutable oracle;
     uint256 public basePriceWei;
@@ -38,7 +42,7 @@ contract CardSale is Ownable, ReentrancyGuard {
     error InsufficientPayment();
     error EthTransferFailed();
 
-    constructor(address cards_, address oracle_, uint256 basePriceWei_) Ownable(msg.sender) ReentrancyGuard() {
+    constructor(address cards_, address oracle_, uint256 basePriceWei_) Ownable(msg.sender) Pausable() ReentrancyGuard() {
         cards = MilestoneCards(cards_);
         oracle = IMilestonePriceOracle(oracle_);
         basePriceWei = basePriceWei_;
@@ -57,7 +61,7 @@ contract CardSale is Ownable, ReentrancyGuard {
         return _listed[tokenId];
     }
 
-    function buy(uint256 tokenId) external payable nonReentrant {
+    function buy(uint256 tokenId) external payable whenNotPaused nonReentrant {
         if (!_listed[tokenId]) revert NotListed();
 
         uint256 price = priceOf(tokenId);
@@ -97,6 +101,15 @@ contract CardSale is Ownable, ReentrancyGuard {
     function setBasePriceWei(uint256 basePriceWei_) external onlyOwner {
         basePriceWei = basePriceWei_;
         emit BasePriceUpdated(basePriceWei_);
+    }
+
+    /// @notice Emergency stop: halt treasury buys.
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
     }
 
     function withdraw(address to) external onlyOwner {

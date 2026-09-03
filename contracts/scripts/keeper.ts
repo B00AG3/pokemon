@@ -6,11 +6,16 @@ dotenv.config();
 /**
  * PokeCard milestone keeper for Robinhood Chain.
  * Polls the price oracle; confirms threshold crossings and mints the next
- * milestone card once the confirmation window has elapsed.
+ * milestone card once the confirmation window has elapsed. Newly minted
+ * cards are listed on the treasury CardSale automatically when
+ * SALE_ADDRESS is configured (minting makes nothing buyable on its own).
  *
  * Env:
  *   KEEPER_PRIVATE_KEY   EOA allowed to call mintNext/confirmCrossing
  *   CARDS_ADDRESS        deployed MilestoneCards address
+ *   SALE_ADDRESS         deployed CardSale address (enables auto-listing;
+ *                        the keeper must be the sale owner, i.e. the
+ *                        deployer, or listing fails gracefully)
  *   KEEPER_RPC_URL       JSON-RPC endpoint (defaults to Robinhood testnet)
  *   INTERVAL_MS          poll interval (default 30000)
  *
@@ -19,6 +24,7 @@ dotenv.config();
 
 const RPC = process.env.KEEPER_RPC_URL ?? 'https://rpc.testnet.chain.robinhood.com';
 const CARDS_ADDRESS = process.env.CARDS_ADDRESS;
+const SALE_ADDRESS = process.env.SALE_ADDRESS;
 const INTERVAL_MS = Number(process.env.INTERVAL_MS ?? 30_000);
 
 const cardsAbi = [
@@ -29,6 +35,10 @@ const cardsAbi = [
   'function confirmCrossing()',
   'function mintNext()',
   'function totalMinted() view returns (uint256)',
+];
+const saleAbi = [
+  'function isListed(uint256 tokenId) view returns (bool)',
+  'function list(uint256[] tokenIds)',
 ];
 const oracleAbi = ['function marketCap() view returns (uint256)'];
 
@@ -72,7 +82,18 @@ async function poll() {
 
     const tx = await cards.mintNext();
     const receipt = await tx.wait();
-    console.log(`[keeper] MINTED card for milestone #${index} - tx ${receipt?.hash}`);
+    const tokenId = BigInt(index) + 1n;
+    console.log(`[keeper] MINTED card #${tokenId} for milestone #${index} - tx ${receipt?.hash}`);
+
+    // a minted card is not buyable until it is listed on the treasury sale
+    if (SALE_ADDRESS) {
+      const sale = new ethers.Contract(SALE_ADDRESS, saleAbi, wallet);
+      if (!(await sale.isListed(tokenId))) {
+        const listTx = await sale.list([tokenId]);
+        await listTx.wait();
+        console.log(`[keeper] LISTED card #${tokenId} on CardSale - tx ${listTx.hash}`);
+      }
+    }
   } catch (error) {
     console.error('[keeper] poll failed:', (error as Error).message ?? error);
   } finally {

@@ -61,7 +61,8 @@ export const cardSaleAbi = parseAbi([
 ]);
 
 export const cardSwapAbi = parseAbi([
-  'struct Listing { address seller; uint256 price; }',
+  // component names are decode labels only; priceWei mirrors ChainCard usage
+  'struct Listing { address seller; uint256 priceWei; }',
   'struct Offer { address maker; uint256 giveTokenId; uint256 wantTokenId; uint256 ethAsk; bool active; }',
   'function listings(uint256 tokenId) view returns (Listing listing)',
   'function offerCount() view returns (uint256)',

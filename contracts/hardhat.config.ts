@@ -6,6 +6,12 @@ dotenv.config();
 
 // Robinhood Chain: Arbitrum Orbit L2.
 // Mainnet chainId 4663, testnet chainId 46630. ETH is the gas token.
+// PRIVATE_KEY is the deployer/treasury; KEEPER_PRIVATE_KEY (optional) is the
+// dedicated keeper wallet, exposed as signer index 1 for scripts.
+const keys = [process.env.PRIVATE_KEY, process.env.KEEPER_PRIVATE_KEY].filter(
+  (key): key is string => Boolean(key),
+);
+
 const config: HardhatUserConfig = {
   solidity: {
     version: '0.8.28',
@@ -21,12 +27,12 @@ const config: HardhatUserConfig = {
     robinhoodTestnet: {
       chainId: 46630,
       url: process.env.RPC_TESTNET_URL ?? 'https://rpc.testnet.chain.robinhood.com',
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: keys,
     },
     robinhoodMainnet: {
       chainId: 4663,
       url: process.env.RPC_MAINNET_URL ?? 'https://rpc.mainnet.chain.robinhood.com',
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: keys,
     },
   },
   etherscan: {

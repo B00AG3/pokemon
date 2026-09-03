@@ -81,6 +81,18 @@ describe('CardSale', () => {
     ).to.be.revertedWithCustomError(sale, 'NotListed');
   });
 
+  it('lets the owner pause buys and unpause to restore them', async () => {
+    const { owner, sale, buyer } = await loadFixture(deployFixture);
+    await sale.connect(owner).pause();
+    await expect(
+      sale.connect(buyer).buy(1n, { value: 10n ** 17n }),
+    ).to.be.revertedWithCustomError(sale, 'EnforcedPause');
+
+    await sale.connect(owner).unpause();
+    await sale.connect(buyer).buy(1n, { value: 10n ** 17n });
+    expect(await sale.isListed(1n)).to.equal(false);
+  });
+
   it('lets the owner delist and withdraw', async () => {
     const { owner, sale, buyer } = await loadFixture(deployFixture);
     await sale.delist([1n]);

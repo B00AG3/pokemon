@@ -127,6 +127,30 @@ describe('CardSwap', () => {
     );
   });
 
+  it('pauses trading but keeps cancellations open', async () => {
+    const { treasury, alice, bob, cards, swap } = await loadFixture(deployFixture);
+    await cards.connect(alice).approve(await swap.getAddress(), 2n);
+    await swap.connect(alice).list(2n, ONE);
+
+    const nonOwner = swap.connect(bob);
+    await expect(nonOwner.pause()).to.be.revertedWithCustomError(swap, 'OwnableUnauthorizedAccount');
+
+    await swap.pause();
+    await expect(swap.connect(bob).buy(2n, { value: ONE })).to.be.revertedWithCustomError(swap, 'EnforcedPause');
+    await expect(swap.connect(alice).offerSwap(2n, 1n, 0n)).to.be.revertedWithCustomError(swap, 'EnforcedPause');
+    // escrowed cards can always be pulled back out
+    await swap.connect(alice).cancelListing(2n);
+    expect(await cards.ownerOf(2n)).to.equal(alice.address);
+
+    await swap.unpause();
+    await cards.connect(alice).approve(await swap.getAddress(), 2n);
+    await swap.connect(alice).list(2n, ONE);
+    await swap.connect(bob).buy(2n, { value: ONE });
+    expect(await cards.ownerOf(2n)).to.equal(bob.address);
+    // silence unused warning for treasury in this fixture scope
+    void treasury;
+  });
+
   it('rejects bad offers and non-owners', async () => {
     const { alice, bob, cards, swap } = await loadFixture(deployFixture);
     await expect(

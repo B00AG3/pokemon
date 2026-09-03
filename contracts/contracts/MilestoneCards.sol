@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import {ERC2981} from '@openzeppelin/contracts/token/common/ERC2981.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+import {Pausable} from '@openzeppelin/contracts/utils/Pausable.sol';
 import {Strings} from '@openzeppelin/contracts/utils/Strings.sol';
 import {IMilestonePriceOracle} from './IMilestonePriceOracle.sol';
 
@@ -13,9 +14,10 @@ import {IMilestonePriceOracle} from './IMilestonePriceOracle.sol';
 /// above the next threshold for `confirmWindow` seconds, the keeper mints the
 /// next card. Each card mints exactly once, ever. Cards go to the treasury
 /// (the owner) to be listed for sale; ERC-2981 royalties accrue on resale.
+/// Minting is pausable as an emergency stop.
 /// @dev Keeper flow per poll: confirmCrossing() (records the crossing), then
 /// mintNext() once confirmWindow has elapsed.
-contract MilestoneCards is ERC721, ERC2981, Ownable {
+contract MilestoneCards is ERC721, ERC2981, Ownable, Pausable {
     struct Milestone {
         uint256 marketCap; // USD, 18 decimals
         bool minted;
@@ -52,7 +54,7 @@ contract MilestoneCards is ERC721, ERC2981, Ownable {
         string memory baseTokenURI_,
         uint256[] memory thresholds,
         uint256 confirmWindow_
-    ) ERC721('PokeCard Milestone Cards', 'PCMC') Ownable(msg.sender) {
+    ) ERC721('PokeCard Milestone Cards', 'PCMC') Ownable(msg.sender) Pausable() {
         if (oracle_ == address(0)) revert InvalidAddress();
         if (keeper_ == address(0)) revert InvalidAddress();
         oracle = IMilestonePriceOracle(oracle_);
@@ -76,7 +78,7 @@ contract MilestoneCards is ERC721, ERC2981, Ownable {
     }
 
     /// @notice Mint the next milestone card, if its crossing is confirmed.
-    function mintNext() external onlyKeeper {
+    function mintNext() external onlyKeeper whenNotPaused {
         uint256 idx = _nextIndex();
         Milestone storage m = _milestones[idx];
 
@@ -140,6 +142,15 @@ contract MilestoneCards is ERC721, ERC2981, Ownable {
 
     function setDefaultRoyalty(address receiver, uint96 feeNumerator) external onlyOwner {
         _setDefaultRoyalty(receiver, feeNumerator);
+    }
+
+    /// @notice Emergency stop: halt milestone mints.
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {

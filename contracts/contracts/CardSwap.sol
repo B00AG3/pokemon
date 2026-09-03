@@ -2,6 +2,8 @@
 pragma solidity ^0.8.28;
 
 import {ReentrancyGuard} from '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
+import {Pausable} from '@openzeppelin/contracts/utils/Pausable.sol';
+import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {MilestoneCards} from './MilestoneCards.sol';
 
 /**
@@ -20,8 +22,12 @@ import {MilestoneCards} from './MilestoneCards.sol';
  * created), so there is no approval race and no orderbook to trust: if the
  * NFT is here, the trade can execute; the maker can cancel any time while
  * it is still active.
+ *
+ * Pausable as an emergency stop: while paused, new listings, buys, offers,
+ * and accepts halt, but cancellations stay open so escrowed cards can
+ * always be pulled back out.
  */
-contract CardSwap is ReentrancyGuard {
+contract CardSwap is Ownable, Pausable, ReentrancyGuard {
     struct Listing {
         address seller;
         uint256 price;
@@ -57,7 +63,7 @@ contract CardSwap is ReentrancyGuard {
     error InsufficientPayment();
     error EthTransferFailed();
 
-    constructor(address cards_) ReentrancyGuard() {
+    constructor(address cards_) Ownable(msg.sender) Pausable() ReentrancyGuard() {
         cards = MilestoneCards(cards_);
     }
 
@@ -75,7 +81,7 @@ contract CardSwap is ReentrancyGuard {
 
     /// @notice Escrow `tokenId` and offer it for `price` wei.
     /// Requires setApprovalForAll or approve for this contract first.
-    function list(uint256 tokenId, uint256 price) external {
+    function list(uint256 tokenId, uint256 price) external whenNotPaused {
         if (cards.ownerOf(tokenId) != msg.sender) revert NotOwner();
         if (price == 0) revert ZeroPrice();
         listings[tokenId] = Listing({seller: msg.sender, price: price});
@@ -94,7 +100,7 @@ contract CardSwap is ReentrancyGuard {
 
     /// @notice Buy an escrowed listing. Overpayment is refunded; royalties
     /// go to the ERC-2981 receiver, the rest to the seller.
-    function buy(uint256 tokenId) external payable nonReentrant {
+    function buy(uint256 tokenId) external payable whenNotPaused nonReentrant {
         Listing memory l = listings[tokenId];
         if (l.seller == address(0)) revert NotListed();
         if (msg.value < l.price) revert InsufficientPayment();
@@ -113,7 +119,7 @@ contract CardSwap is ReentrancyGuard {
 
     /// @notice Escrow your card and ask for `wantTokenId` plus `ethAsk` wei.
     /// The holder of `wantTokenId` accepts to complete the trade.
-    function offerSwap(uint256 giveTokenId, uint256 wantTokenId, uint256 ethAsk) external {
+    function offerSwap(uint256 giveTokenId, uint256 wantTokenId, uint256 ethAsk) external whenNotPaused {
         if (cards.ownerOf(giveTokenId) != msg.sender) revert NotOwner();
         if (giveTokenId == wantTokenId) revert SelfSwap();
         _offers.push(
@@ -135,7 +141,7 @@ contract CardSwap is ReentrancyGuard {
 
     /// @notice Accept a swap offer as the holder of the wanted card. Requires
     /// setApprovalForAll or approve for this contract first, and pays ethAsk.
-    function acceptSwap(uint256 offerId) external payable nonReentrant {
+    function acceptSwap(uint256 offerId) external payable whenNotPaused nonReentrant {
         Offer memory offer = _offers[offerId];
         if (!offer.active) revert OfferInactive();
         if (cards.ownerOf(offer.wantTokenId) != msg.sender) revert NotCardHolder();
@@ -156,6 +162,15 @@ contract CardSwap is ReentrancyGuard {
 
     function _refundExcess(uint256 amount) internal {
         if (amount > 0) _send(msg.sender, amount);
+    }
+
+    /// @notice Emergency stop: halt new trades. Cancellations stay open.
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
     }
 
     /// @notice Accept ETH (accidental transfers).

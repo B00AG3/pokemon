@@ -55,6 +55,10 @@ export default function Home({
 
       <header className="grid items-center gap-10 pb-10 pt-8 lg:grid-cols-[1.02fr_0.98fr] lg:pt-10">
         <div className="max-w-xl">
+          <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 font-mono text-[11px] tracking-wide text-white/60">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#00bd7d]" aria-hidden />
+            Backed by real TCG assets
+          </p>
           <h1 className="font-display text-5xl font-semibold leading-[1.06] tracking-tight sm:text-6xl xl:text-[4.2rem]">
             Every milestone,
             <br />a real Pokemon card.

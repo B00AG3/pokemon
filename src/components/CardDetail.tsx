@@ -205,6 +205,11 @@ export default function CardDetail({
                 Original TCG print rarity. Holo rarities carry the rainbow foil
                 layer in your PokeCard collection.
               </Accordion>
+              <Accordion label="Backing">
+                Backed by real TCG assets - every milestone card carries the
+                artwork of a real Pokemon TCG collectible, one card per
+                milestone, never minted again.
+              </Accordion>
               <Accordion label={`Milestone: ${card.launchMc.toLocaleString('en-US')} market cap`}>
                 This card minted when the token crossed{' '}
                 ${card.launchMc.toLocaleString('en-US')}. The current market cap

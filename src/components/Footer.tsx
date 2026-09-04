@@ -12,7 +12,7 @@ export default function Footer() {
   return (
     <footer className="border-t border-white/10 py-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-white/40">
+        <span className="font-mono text-[11px] tracking-[0.08em] text-white/40">
           PokeCard Lab
         </span>
         <div className="flex flex-wrap gap-x-5 gap-y-1">
@@ -20,7 +20,7 @@ export default function Footer() {
             <Link
               key={link.to}
               to={link.to}
-              className="font-mono text-[11px] uppercase tracking-wide text-white/40 transition hover:text-white/80"
+              className="font-mono text-[11px] tracking-[0.02em] text-white/40 transition hover:text-white/80"
             >
               {link.label}
             </Link>

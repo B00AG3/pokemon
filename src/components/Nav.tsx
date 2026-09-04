@@ -30,10 +30,10 @@ export default function Nav({ onHowItWorks }: { onHowItWorks?: () => void }) {
   const location = useLocation();
 
   return (
-    <nav className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 py-5">
+    <nav className="sticky top-0 z-40 -mx-6 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#070708]/85 px-6 py-4 backdrop-blur-lg">
       <Link to="/" className="flex items-center gap-2.5">
         <PokeballMark className="h-6 w-6 text-white" />
-        <span className="font-display text-[17px] font-medium uppercase tracking-wide">
+        <span className="font-display text-[17px] font-medium tracking-wide">
           PokeCard Lab
         </span>
       </Link>
@@ -45,7 +45,7 @@ export default function Nav({ onHowItWorks }: { onHowItWorks?: () => void }) {
               to={link.to}
               end={link.to === '/'}
               className={({ isActive }) =>
-                `font-mono text-[12px] uppercase tracking-wide transition ${
+                `font-mono text-[12px] tracking-[0.02em] transition ${
                   isActive ? 'text-white' : 'text-white/45 hover:text-white/85'
                 }`
               }

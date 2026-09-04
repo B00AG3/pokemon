@@ -81,7 +81,7 @@ export function ConfirmTxProvider({ children }: { children: ReactNode }) {
         >
           <div className="panel w-full max-w-sm p-6">
             <p className="eyebrow">Confirm</p>
-            <h2 className="mt-2 font-display text-xl font-semibold uppercase tracking-tight">
+            <h2 className="mt-2 font-display text-xl font-semibold tracking-tight">
               {request.title}
             </h2>
             <dl className="mt-4 space-y-2.5 border-t border-white/10 pt-4 font-mono text-xs">

@@ -17,15 +17,21 @@
 
 body {
   margin: 0;
-  background-color: #070708;
+  /* Faint accent wash at the very top gives the page depth without a banner. */
+  background:
+    radial-gradient(110% 52% at 50% -12%, rgb(0 189 125 / 0.06), transparent 62%),
+    #070708;
   color: #f2f2f0;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
+::selection {
+  background: rgb(0 189 125 / 0.35);
+}
+
 .app-shell {
   overflow-x: clip;
-  background: #070708;
 }
 
 /* ---------- primitives ---------- */
@@ -34,9 +40,8 @@ body {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgb(255 255 255 / 0.4);
+  letter-spacing: 0.08em;
+  color: rgb(255 255 255 / 0.5);
 }
 
 .btn {
@@ -50,14 +55,15 @@ body {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
   line-height: 1;
   cursor: pointer;
   transition:
     background-color 150ms ease,
     border-color 150ms ease,
-    color 150ms ease;
+    color 150ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .btn:focus-visible,
@@ -81,8 +87,15 @@ button:focus-visible {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: rgb(255 255 255 / 0.82);
-  border-color: rgb(255 255 255 / 0.82);
+  background: rgb(255 255 255 / 0.88);
+  border-color: rgb(255 255 255 / 0.88);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px -16px rgb(255 255 255 / 0.45);
+}
+
+.btn:not(:disabled):active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .btn-ghost {
@@ -149,8 +162,7 @@ button:focus-visible {
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
   line-height: 1;
 }
 
@@ -167,6 +179,98 @@ button:focus-visible {
 .chip-solid {
   background: var(--color-accent);
   color: #04120c;
+}
+
+/* ---------- motion ---------- */
+
+/*
+ * Entrance vocabulary: one rise (page load), one reveal (scroll), one bloom
+ * (hero light pool). Everything is opacity/transform/filter only, so the
+ * animations stay on the compositor.
+ */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.rise {
+  animation: rise-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Soft accent pools behind the hero copy and coverflow. */
+.hero-aurora {
+  position: absolute;
+  inset: -14% -18% -26%;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 52% at 68% 40%, rgb(0 189 125 / 0.1), transparent 70%),
+    radial-gradient(34% 46% at 26% 16%, rgb(255 255 255 / 0.05), transparent 70%);
+  animation: aurora-breathe 14s ease-in-out infinite;
+}
+
+@keyframes aurora-breathe {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.045);
+  }
+}
+
+/* Market and portfolio tiles lift a few pixels as a single read. */
+.card-lift {
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.card-lift:hover {
+  transform: translateY(-3px);
+  border-color: rgb(255 255 255 / 0.2);
+  box-shadow: 0 24px 48px -26px rgb(0 0 0 / 0.95);
+}
+
+/* The open draw quietly breathes so it reads as the live opportunity. */
+.draw-tile {
+  animation: draw-pulse 3.6s ease-in-out infinite;
+}
+
+@keyframes draw-pulse {
+  0%,
+  100% {
+    border-color: rgb(0 189 125 / 0.28);
+    box-shadow: 0 0 0 0 rgb(0 189 125 / 0);
+  }
+  50% {
+    border-color: rgb(0 189 125 / 0.55);
+    box-shadow: 0 0 30px -8px rgb(0 189 125 / 0.25);
+  }
 }
 
 /* ---------- hero card coverflow (infinite draggable arc) ---------- */
@@ -240,6 +344,13 @@ button:focus-visible {
   box-shadow: 0 24px 48px -20px rgb(0 0 0 / 0.9);
   pointer-events: none;
   display: block;
+  /* Images fade in when decoded so nothing pops mid-entrance. */
+  opacity: 0;
+  transition: opacity 600ms ease;
+}
+
+.orbit-card img.ready {
+  opacity: 1;
 }
 
 .orbit-caption {
@@ -274,7 +385,8 @@ button:focus-visible {
   animation: pulse-soft 1.8s ease-in-out infinite;
 }
 
-/* Faint pool of light under the center card so the fan reads as staged. */
+/* Faint pool of light under the center card so the fan reads as staged.
+ * It blooms in with the card entrance instead of being there from frame one. */
 .orbit-glow {
   position: absolute;
   left: 50%;
@@ -289,6 +401,18 @@ button:focus-visible {
   );
   filter: blur(28px);
   pointer-events: none;
+  animation: glow-bloom 1.8s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+
+@keyframes glow-bloom {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 @keyframes pulse-soft {
@@ -342,7 +466,22 @@ button:focus-visible {
     transition-duration: 1ms;
   }
 
-  .orbit-slot {
+  .orbit-slot,
+  .rise,
+  .hero-aurora,
+  .draw-tile,
+  .orbit-glow {
     animation: none;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .orbit-card img {
+    opacity: 1;
+    transition: none;
   }
 }

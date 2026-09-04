@@ -5,6 +5,8 @@ import { getCardImageUrl } from '../services/tcgdex';
 const SPACING = 170;
 const SNAP_MS = 400;
 const ARC_RADIUS = 820;
+const INTRO_MS = 950;
+const INTRO_STAGGER_MS = 85;
 
 function wrap(value: number, modulus: number): number {
   return ((value % modulus) + modulus) % modulus;
@@ -17,6 +19,11 @@ const easeOutQuart = (t: number) => 1 - Math.pow(1 - t, 4);
  * and on release it snaps to the nearest card with a quick eased animation.
  * Because motion only happens inside that fast transition, cards never sit
  * mid-overlap long enough for the stacking hand-off to read as clipping.
+ *
+ * Entrance: on mount the fan deals itself out from the center card - each
+ * card rises from below with a stagger by distance from center, un-blurring
+ * and un-rotating into its belt slot. The same rAF loop drives it, blended
+ * against the belt math so a drag during the entrance stays coherent.
  *
  * Anti-clip stack:
  *  - flat (non-preserve-3d) context, so planes cannot slice each other;
@@ -31,6 +38,13 @@ export default function CardCoverflow({ items }: { items: CardListItem[] }) {
   const [failed, setFailed] = useState<ReadonlySet<string>>(new Set());
   const [dragging, setDragging] = useState(false);
 
+  const reduced = useMemo(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    [],
+  );
+
   const st = useRef({
     pos: 0,
     dragging: false,
@@ -38,6 +52,7 @@ export default function CardCoverflow({ items }: { items: CardListItem[] }) {
     velX: 0,
     anim: null as null | { from: number; to: number; start: number },
     lastFramePos: 0,
+    introT0: 0,
     raf: 0,
   }).current;
 
@@ -51,6 +66,7 @@ export default function CardCoverflow({ items }: { items: CardListItem[] }) {
     if (!container || n === 0) return;
 
     const tick = (now: number) => {
+      if (st.introT0 === 0) st.introT0 = now;
       if (st.anim) {
         const a = st.anim;
         const t = Math.min(1, (now - a.start) / SNAP_MS);
@@ -79,23 +95,39 @@ export default function CardCoverflow({ items }: { items: CardListItem[] }) {
         const approaching =
           ev > 0.0004 ? f > 0 : ev < -0.0004 ? f < 0 : null;
         const boost = approaching ? 500 : 0;
+
+        // entrance blend: 0 = dealt from below the stage, 1 = settled belt
+        let it = reduced
+          ? 1
+          : (now - st.introT0 - Math.min(a, 5) * INTRO_STAGGER_MS) / INTRO_MS;
+        it = Math.max(0, Math.min(1, it));
+        const ie = 1 - Math.pow(1 - it, 3);
+        const enterY = (1 - ie) * 120;
+        const enterRotY = (1 - ie) * -26;
+        const enterRotZ = (1 - ie) * (f >= 0 ? -18 : 18);
+        const scale = 0.84 + 0.16 * ie;
+
         cardEl.style.zIndex = String(3000 - Math.round(a * 200) + boost);
         cardEl.style.transform =
           `translate(-50%, -50%)` +
           ` translateX(${(f * SPACING).toFixed(1)}px)` +
-          ` translateY(${y.toFixed(1)}px)` +
+          ` translateY(${(y + enterY).toFixed(1)}px)` +
           ` translateZ(${(-a * 110).toFixed(1)}px)` +
-          ` rotateY(${(-f * 32).toFixed(2)}deg)` +
-          ` rotateZ(${(tangentDeg + motionTilt).toFixed(2)}deg)`;
-        cardEl.style.opacity = Math.max(0, 1 - a * 0.26).toFixed(3);
-        cardEl.style.filter = `brightness(${Math.max(0.4, 1 - a * 0.22).toFixed(3)}) blur(${blur.toFixed(1)}px)`;
+          ` rotateY(${(-f * 32 + enterRotY).toFixed(2)}deg)` +
+          ` rotateZ(${(tangentDeg + motionTilt + enterRotZ).toFixed(2)}deg)` +
+          ` scale(${scale.toFixed(3)})`;
+        cardEl.style.opacity = (Math.max(0, 1 - a * 0.26) * ie).toFixed(3);
+        const brightness =
+          0.5 + (Math.max(0.4, 1 - a * 0.22) - 0.5) * ie;
+        cardEl.style.filter =
+          `brightness(${brightness.toFixed(3)}) blur(${(blur + (1 - ie) * 7).toFixed(1)}px)`;
         cardEl.style.setProperty('--ca', Math.max(0, 1.15 - a).toFixed(2));
       }
       st.raf = requestAnimationFrame(tick);
     };
     st.raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(st.raf);
-  }, [n, st]);
+  }, [n, st, reduced]);
 
   const visible = useMemo(
     () => items.filter((card) => !failed.has(card.id)),
@@ -176,6 +208,13 @@ export default function CardCoverflow({ items }: { items: CardListItem[] }) {
                   src={getCardImageUrl(card)}
                   alt={card.name || card.id}
                   draggable={false}
+                  onLoad={(event) => event.currentTarget.classList.add('ready')}
+                  ref={(el) => {
+                    // cached images can finish before React attaches onLoad
+                    if (el && el.complete && el.naturalWidth > 0) {
+                      el.classList.add('ready');
+                    }
+                  }}
                   onError={() =>
                     setFailed((prev) => new Set(prev).add(card.id))
                   }

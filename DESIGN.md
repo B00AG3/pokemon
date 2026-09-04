@@ -28,32 +28,41 @@ semantic only.
 
 ## Primitives
 
-- `.eyebrow`: mono 11px uppercase, 0.16em tracking, white/40. No numbering.
-- `.btn`: square (3px), mono 11px uppercase tracked. Primary white-on-black
-  text; ghost hairline. Hover: border brightens, no translate.
+- `.eyebrow`: mono 11px, 0.08em tracking, white/50. Sentence case; all-caps
+  kickers and headers are banned site-wide.
+- `.btn`: square (3px), mono 11px sentence case. Primary white-on-black
+  text; ghost hairline. Hover: border brightens, primary lifts 1px with a
+  soft shadow; ghost stays color-only.
 - `.panel`: hairline border on `#0d0d0f`, 4px radius, no shadow. Structure
   inside panels uses hairline dividers, not nested boxes.
-- `.chip`: mono 10px uppercase, 2px radius, tinted border + text, transparent
-  fill (solid green fill only for MINTED/YOURS).
+- `.chip`: mono 10px sentence case, 2px radius, tinted border + text,
+  transparent fill (solid green fill only for MINTED/YOURS).
 - `.stat-strip`: one panel divided by vertical hairlines; label over mono
   value. Use for metric rows instead of grids of identical tiles.
-- Buttons never lift (`translateY`); hover states change color only.
+- Card tiles (`.card-lift`) lift 3px on hover; ghost buttons and nav links
+  change color only.
 - Focus: 2px `#00bd7d` outline, offset 2px. Preserved everywhere.
 
 ## Surfaces
 
-- Hero: mono kicker line, Oswald H1, short body, two buttons, live-cap line.
-  Right: draggable card coverflow (kept from incumbent, it is the signature).
+- Hero: mono kicker line, Oswald H1, short body, two buttons. Accent pools
+  (`hero-aurora`) sit behind the fold. Right: draggable card coverflow
+  (kept from incumbent, it is the signature).
 - Sections open with eyebrow + Oswald H2; content separated by hairlines.
 - Market grid: hairline cards, card art is the only large color.
 - Roadmap: ledger rows, hairline dividers, status chips.
-- Footer: hairline top, brand, links, disclaimer fine print.
+- Footer: hairline top, brand, links, disclaimer fine print. Anchored to the
+  viewport bottom on short pages (flex shell).
 
 ## Motion
 
-Only state transitions: coverflow snap, card flip, progress bar. Durations
-150-400ms, ease-out. No entrance animations, no pulses except the live status
-dot. Respect `prefers-reduced-motion` where animation exists.
+Entrance choreography on load, state transitions after. Hero copy rises in
+staggered steps (`.rise`); the coverflow deals its fan out from the center
+card (rAF blend, one-time); sections reveal on first scroll into view
+(`Reveal` + `.reveal`); the light pool under the coverflow blooms in; the
+open-draw tile breathes. Durations 150-950ms, ease-out curves. Everything is
+opacity/transform/filter only. Respect `prefers-reduced-motion`: entrance
+and loop animations collapse to the settled state.
 
 ## Voice
 

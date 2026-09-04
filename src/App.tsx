@@ -22,17 +22,19 @@ function Shell() {
 
   return (
     <div className="app-shell min-h-screen">
-      <div className="mx-auto max-w-6xl px-6">
+      <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-6">
         <Nav onHowItWorks={() => setShowTour(true)} />
         <ScrollToTop />
-        <Routes>
-          <Route path="/" element={<Home showTour={showTour} onTourDone={() => setShowTour(false)} />} />
-          <Route path="/portfolio" element={<Portfolio />} />
-          <Route path="/activity" element={<Activity />} />
-          <Route path="/roadmap" element={<Roadmap />} />
-          <Route path="/token" element={<TokenPage />} />
-          <Route path="*" element={<Home showTour={showTour} onTourDone={() => setShowTour(false)} />} />
-        </Routes>
+        <main className="flex-1">
+          <Routes>
+            <Route path="/" element={<Home showTour={showTour} onTourDone={() => setShowTour(false)} />} />
+            <Route path="/portfolio" element={<Portfolio />} />
+            <Route path="/activity" element={<Activity />} />
+            <Route path="/roadmap" element={<Roadmap />} />
+            <Route path="/token" element={<TokenPage />} />
+            <Route path="*" element={<Home showTour={showTour} onTourDone={() => setShowTour(false)} />} />
+          </Routes>
+        </main>
         <Footer />
       </div>
     </div>

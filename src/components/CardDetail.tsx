@@ -41,7 +41,7 @@ function PokeballBack() {
 function Accordion({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <details className="group border-t border-white/10 py-4">
-      <summary className="flex cursor-pointer list-none items-center justify-between font-mono text-[11px] uppercase tracking-[0.18em] text-white/70">
+      <summary className="flex cursor-pointer list-none items-center justify-between font-mono text-[11px] tracking-[0.08em] text-white/70">
         {label}
         <span className="text-white/45 transition group-open:rotate-90">›</span>
       </summary>
@@ -148,7 +148,7 @@ export default function CardDetail({
             <p className="eyebrow">
               Milestone card - #{String(card.cardNumber).padStart(2, '0')}
             </p>
-            <h1 className="mt-3 font-display text-3xl font-semibold uppercase tracking-tight sm:text-4xl">
+            <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
               {card.name}
             </h1>
             <p className="mt-2 font-mono text-lg text-white">

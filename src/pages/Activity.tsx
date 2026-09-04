@@ -13,9 +13,9 @@ function timeAgo(ts: number): string {
 }
 
 const TYPE_META: Record<MarketEvent['type'], { label: string; color: string }> = {
-  mint: { label: 'AIRDROP', color: 'text-[#00bd7d]' },
-  buy: { label: 'BUY', color: 'text-white' },
-  sell: { label: 'SELL', color: 'text-amber-400' },
+  mint: { label: 'Airdrop', color: 'text-[#00bd7d]' },
+  buy: { label: 'Buy', color: 'text-white' },
+  sell: { label: 'Sell', color: 'text-amber-400' },
 };
 
 function describe(
@@ -44,13 +44,13 @@ export default function Activity() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow">The tape</p>
-          <h1 className="mt-2 font-display text-3xl font-semibold uppercase tracking-tight sm:text-4xl">
+          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
             Activity
           </h1>
         </div>
-        <span className={`chip ${market.mode === 'demo' ? 'chip-neutral' : 'chip-up'}`}>
-          {market.mode === 'demo' ? 'Demo history' : 'On-chain events'}
-        </span>
+        {market.mode === 'demo' && (
+          <span className="chip chip-neutral">Demo history</span>
+        )}
       </div>
 
       {market.mode === 'demo' && (

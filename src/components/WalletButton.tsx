@@ -67,7 +67,7 @@ export default function WalletButton() {
     <div ref={ref} className="relative">
       <button
         type="button"
-        className="btn btn-ghost !gap-2 !normal-case"
+        className="btn btn-ghost !gap-2"
         onClick={() => setMenuOpen((value) => !value)}
       >
         <span

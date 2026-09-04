@@ -100,7 +100,7 @@ export default function TokenPage() {
     <section className="pb-16">
       <div className="mb-8">
         <p className="eyebrow">The ticker</p>
-        <h1 className="mt-2 font-display text-3xl font-semibold uppercase tracking-tight sm:text-4xl">
+        <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
           Get POKE
         </h1>
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/60">
@@ -113,7 +113,7 @@ export default function TokenPage() {
         <div className="flex flex-wrap items-center gap-x-10 gap-y-4">
           <div>
             <p className="eyebrow">token</p>
-            <p className="mt-1.5 font-display text-xl font-medium uppercase">PokeCard Token</p>
+            <p className="mt-1.5 font-display text-xl font-medium">PokeCard Token</p>
           </div>
           <div className="sm:border-l sm:border-white/10 sm:pl-10">
             <p className="font-mono text-[11px] text-white/40">symbol</p>
@@ -161,7 +161,7 @@ export default function TokenPage() {
         </div>
       </div>
 
-      <h2 className="font-display text-2xl font-medium uppercase tracking-tight">
+      <h2 className="font-display text-2xl font-medium tracking-tight">
         How to win a card, step by step
       </h2>
       <div className="mt-6 grid gap-x-8 gap-y-8 md:grid-cols-2">
@@ -178,7 +178,7 @@ export default function TokenPage() {
         ))}
       </div>
 
-      <h2 className="mt-12 font-display text-2xl font-medium uppercase tracking-tight">
+      <h2 className="mt-12 font-display text-2xl font-medium tracking-tight">
         Contracts
       </h2>
       <div className="panel mt-4 px-5 py-1.5">

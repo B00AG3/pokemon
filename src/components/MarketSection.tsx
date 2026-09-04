@@ -3,6 +3,7 @@ import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { getCardImageUrl } from '../services/tcgdex';
 import CardDetail from './CardDetail';
 import { useTxConfirm } from './ConfirmTx';
+import Reveal from './Reveal';
 import { useMarket, ownerLabel } from '../state/MarketProvider';
 import { formatEth, formatPokePrice, pokeUsdPrice, referencePriceEth } from '../demo/market';
 
@@ -88,7 +89,7 @@ export default function MarketSection() {
           ? `cap $${market.marketCap.toLocaleString('en-US')} - POKE ${formatPokePrice(pokeUsdPrice(market.marketCap))}`
           : `cap $${market.marketCap.toLocaleString('en-US')} - POKE ${formatPokePrice(pokeUsdPrice(market.marketCap))} (sim)`}
       </span>
-      {live ? <span className="chip chip-up">Live</span> : <span className="chip chip-neutral">Demo</span>}
+      {!live && <span className="chip chip-neutral">Demo</span>}
     </div>
   );
 
@@ -101,7 +102,7 @@ export default function MarketSection() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow">The market</p>
-          <h2 className="mt-2 font-display text-3xl font-semibold uppercase tracking-tight sm:text-4xl">
+          <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
             The draw, then holder to holder
           </h2>
         </div>
@@ -164,19 +165,20 @@ export default function MarketSection() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {drawCard && market.draw.open && (
-          <DrawTile onEnter={enterDraw} />
-        )}
-        {cards
-          .filter((c) => c.minted)
-          .map((card) => {
-            const mine = market.myCards.some((c) => c.id === card.id);
-            const sellReference =
-              card.chartEth ?? referencePriceEth(card.launchUsd, market.marketCap);
+      <Reveal>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {drawCard && market.draw.open && (
+            <DrawTile onEnter={enterDraw} />
+          )}
+          {cards
+            .filter((c) => c.minted)
+            .map((card) => {
+              const mine = market.myCards.some((c) => c.id === card.id);
+              const sellReference =
+                card.chartEth ?? referencePriceEth(card.launchUsd, market.marketCap);
 
-            return (
-              <article key={card.id} className="panel relative flex flex-col p-4">
+              return (
+                <article key={card.id} className="panel card-lift relative flex flex-col p-4">
                 {mine && (
                   <span className="chip chip-solid absolute right-3 top-3 z-10">Yours</span>
                 )}
@@ -267,7 +269,8 @@ export default function MarketSection() {
               </article>
             );
           })}
-      </div>
+        </div>
+      </Reveal>
 
       {openCard && (
         <CardDetail
@@ -326,7 +329,7 @@ function DrawTile({ onEnter }: { onEnter: () => Promise<void> }) {
   const name = art?.name ?? `Milestone Card #${String(nextCard?.tokenId ?? 0).padStart(2, '0')}`;
 
   return (
-    <article className="panel relative flex flex-col border-[#00bd7d]/40 p-4">
+    <article className="panel card-lift draw-tile relative flex flex-col p-4">
       <span className="chip chip-up absolute right-3 top-3 z-10">Draw open</span>
       <div className="overflow-hidden rounded-[6px] border border-white/12">
         {art?.image ? (

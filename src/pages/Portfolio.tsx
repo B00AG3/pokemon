@@ -58,13 +58,11 @@ export default function Portfolio() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow">Your collection</p>
-          <h1 className="mt-2 font-display text-3xl font-semibold uppercase tracking-tight sm:text-4xl">
+          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
             Portfolio
           </h1>
         </div>
-        <span className={`chip ${live ? 'chip-up' : 'chip-neutral'}`}>
-          {live ? 'Live' : 'Demo portfolio'}
-        </span>
+        {!live && <span className="chip chip-neutral">Demo portfolio</span>}
       </div>
 
       {live && market.live.status === 'error' && (
@@ -91,19 +89,19 @@ export default function Portfolio() {
 
       <dl className="panel mb-8 grid grid-cols-2 gap-y-6 p-5 sm:grid-cols-4 sm:gap-y-0 lg:divide-x lg:divide-white/10">
         <div className="lg:pr-6">
-          <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/40">
+          <dt className="font-mono text-[10px] tracking-[0.08em] text-white/40">
             balance
           </dt>
           <dd className="mt-2 font-mono text-lg text-white">{formatEth(market.eth)}</dd>
         </div>
         <div className="lg:px-6">
-          <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/40">
+          <dt className="font-mono text-[10px] tracking-[0.08em] text-white/40">
             holdings value
           </dt>
           <dd className="mt-2 font-mono text-lg text-white">{formatEth(holdingsValue)}</dd>
         </div>
         <div className="lg:px-6">
-          <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/40">
+          <dt className="font-mono text-[10px] tracking-[0.08em] text-white/40">
             unrealized
           </dt>
           <dd
@@ -119,7 +117,7 @@ export default function Portfolio() {
           </dd>
         </div>
         <div className="lg:pl-6">
-          <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/40">
+          <dt className="font-mono text-[10px] tracking-[0.08em] text-white/40">
             realized
           </dt>
           <dd
@@ -149,7 +147,7 @@ export default function Portfolio() {
       )}
 
       {/* owned cards */}
-      <h2 className="font-display text-xl font-medium uppercase tracking-tight">
+      <h2 className="font-display text-xl font-medium tracking-tight">
         Your cards
       </h2>
       {!hasCards ? (
@@ -168,7 +166,7 @@ export default function Portfolio() {
             const cost = market.costOf(card.id);
             const pnl = cost === undefined ? undefined : card.priceEth - cost;
             return (
-              <article key={card.id} className="panel flex flex-col p-4">
+              <article key={card.id} className="panel card-lift flex flex-col p-4">
                 <button
                   type="button"
                   className="block w-full cursor-pointer text-left"

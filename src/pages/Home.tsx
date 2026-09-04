@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import CardCoverflow from '../components/CardCoverflow';
 import MarketSection from '../components/MarketSection';
+import Reveal from '../components/Reveal';
 import { getCardWall } from '../services/tcgdex';
 import { useMarket } from '../state/MarketProvider';
 import { LADDER_TCG_IDS } from '../constants/ladder';
@@ -66,20 +67,30 @@ export default function Home({
         </Suspense>
       )}
 
-      <header className="grid items-center gap-10 pb-12 pt-10 lg:grid-cols-[1.02fr_0.98fr] lg:pt-14">
-        <div className="max-w-xl">
-          <p className="eyebrow">
+      <header className="relative grid items-center gap-10 pb-12 pt-10 lg:grid-cols-[1.02fr_0.98fr] lg:pt-14">
+        <div className="hero-aurora" aria-hidden />
+        <div className="relative max-w-xl">
+          <p className="eyebrow rise" style={{ animationDelay: '40ms' }}>
             Real Pokemon TCG cards, airdropped free to holders
           </p>
-          <h1 className="mt-4 font-display text-5xl font-semibold uppercase leading-[1.04] tracking-tight sm:text-6xl xl:text-[4.4rem]">
+          <h1
+            className="rise mt-4 font-display text-5xl font-semibold leading-[1.06] tracking-tight sm:text-6xl xl:text-[4.4rem]"
+            style={{ animationDelay: '140ms' }}
+          >
             Every milestone airdrops a real Pokemon card.
           </h1>
-          <p className="mt-6 max-w-md text-[15px] leading-relaxed text-white/60">
+          <p
+            className="rise mt-6 max-w-md text-[15px] leading-relaxed text-white/60"
+            style={{ animationDelay: '260ms' }}
+          >
             POKE launches on the Robinhood Chain. At each market-cap
             milestone, the contract airdrops one real card to a drawn holder -
             free, exactly once. Hold, and the collection comes to you.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div
+            className="rise mt-8 flex flex-wrap gap-3"
+            style={{ animationDelay: '380ms' }}
+          >
             <Link to="/token" className="btn btn-primary">
               Get POKE
             </Link>
@@ -87,13 +98,6 @@ export default function Home({
               See the roadmap
             </Link>
           </div>
-          {market.live.ready && market.live.capUsd !== undefined && (
-            <p className="mt-6 font-mono text-xs text-[#00bd7d]">
-              live: ${market.live.capUsd.toLocaleString('en-US')} cap,{' '}
-              {market.live.totalMinted ?? 0} card
-              {market.live.totalMinted === 1 ? '' : 's'} airdropped
-            </p>
-          )}
         </div>
 
         <CardCoverflow items={heroItems} />
@@ -101,7 +105,7 @@ export default function Home({
 
       <section id="how" className="scroll-mt-10 border-t border-white/10 pb-12 pt-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="font-display text-4xl font-semibold uppercase tracking-tight sm:text-5xl">
+          <h2 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">
             How it works
           </h2>
           <p className="font-mono text-xs text-white/40">
@@ -110,55 +114,59 @@ export default function Home({
         </div>
 
         <div className="mt-10 grid gap-8 md:grid-cols-3">
-          {HOW_IT_WORKS.map((item) => (
-            <div key={item.step} className="border-t border-white/15 pt-5">
-              <p className="font-mono text-xs text-white/45">{item.step}</p>
-              <h3 className="mt-3 font-display text-xl font-medium uppercase tracking-tight">
-                {item.title}
-              </h3>
-              <p className="mt-2.5 text-sm leading-relaxed text-white/55">
-                {item.body}
-              </p>
-            </div>
+          {HOW_IT_WORKS.map((item, i) => (
+            <Reveal key={item.step} delay={i * 90}>
+              <div className="border-t border-white/15 pt-5">
+                <p className="font-mono text-xs text-white/45">{item.step}</p>
+                <h3 className="mt-3 font-display text-xl font-medium tracking-tight">
+                  {item.title}
+                </h3>
+                <p className="mt-2.5 text-sm leading-relaxed text-white/55">
+                  {item.body}
+                </p>
+              </div>
+            </Reveal>
           ))}
         </div>
 
-        <div className="panel mt-10 grid gap-8 p-7 sm:p-9 lg:grid-cols-[1.2fr_1fr]">
-          <div>
-            <p className="eyebrow">
-              card #01 / {cardOneName.toLowerCase()} / base set
-            </p>
-            <p className="mt-4 max-w-xl font-display text-2xl font-semibold uppercase leading-snug tracking-tight sm:text-3xl">
-              Card #01 went to a holder for free. The next one could be you.
-            </p>
-            <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/55">
-              Every milestone card airdrops to a drawn wallet - no sale, no
-              mint price, nothing to snipe. The only ticket is holding POKE
-              when the cap crosses. After that, cards sell holder to holder
-              at whatever the market pays.
-            </p>
+        <Reveal>
+          <div className="panel mt-10 grid gap-8 p-7 sm:p-9 lg:grid-cols-[1.2fr_1fr]">
+            <div>
+              <p className="eyebrow">
+                card #01 / {cardOneName.toLowerCase()} / base set
+              </p>
+              <p className="mt-4 max-w-xl font-display text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
+                Card #01 went to a holder for free. The next one could be you.
+              </p>
+              <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/55">
+                Every milestone card airdrops to a drawn wallet - no sale, no
+                mint price, nothing to snipe. The only ticket is holding POKE
+                when the cap crosses. After that, cards sell holder to holder
+                at whatever the market pays.
+              </p>
+            </div>
+            <dl className="grid grid-cols-3 gap-6 self-end lg:border-l lg:border-white/10 lg:pl-8">
+              <div>
+                <dt className="font-mono text-[10px] tracking-[0.08em] text-white/40">
+                  entry cost
+                </dt>
+                <dd className="mt-2 font-mono text-lg text-white">0 ETH</dd>
+              </div>
+              <div>
+                <dt className="font-mono text-[10px] tracking-[0.08em] text-white/40">
+                  the ticket
+                </dt>
+                <dd className="mt-2 font-mono text-lg text-white">hold POKE</dd>
+              </div>
+              <div>
+                <dt className="font-mono text-[10px] tracking-[0.08em] text-white/40">
+                  cards, one each
+                </dt>
+                <dd className="mt-2 font-mono text-lg text-white">8</dd>
+              </div>
+            </dl>
           </div>
-          <dl className="grid grid-cols-3 gap-6 self-end lg:border-l lg:border-white/10 lg:pl-8">
-            <div>
-              <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/40">
-                entry cost
-              </dt>
-              <dd className="mt-2 font-mono text-lg text-white">0 ETH</dd>
-            </div>
-            <div>
-              <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/40">
-                the ticket
-              </dt>
-              <dd className="mt-2 font-mono text-lg text-white">hold POKE</dd>
-            </div>
-            <div>
-              <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/40">
-                cards, one each
-              </dt>
-              <dd className="mt-2 font-mono text-lg text-white">8</dd>
-            </div>
-          </dl>
-        </div>
+        </Reveal>
       </section>
 
       <MarketSection />

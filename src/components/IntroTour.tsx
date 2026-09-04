@@ -50,13 +50,13 @@ const GREEN = '#00bd7d';
 const RED = '#f87171';
 
 const TOUR_CSS = `
-.tour-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:3px;padding:0 14px;height:32px;font-family:var(--font-mono,ui-monospace,monospace);font-size:11px;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;line-height:1;cursor:pointer;transition:border-color 200ms ease-out,color 200ms ease-out}
+.tour-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:3px;padding:0 14px;height:32px;font-family:var(--font-mono,ui-monospace,monospace);font-size:11px;font-weight:600;letter-spacing:0.02em;line-height:1;cursor:pointer;transition:border-color 200ms ease-out,color 200ms ease-out}
 .tour-btn:focus-visible{outline:2px solid #00bd7d;outline-offset:2px}
 .tour-btn-primary{background:#f2f2f0;border:1px solid #f2f2f0;color:#070708}
 .tour-btn-primary:hover{border-color:rgba(255,255,255,0.65)}
 .tour-btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.16);color:rgba(255,255,255,0.6)}
 .tour-btn-ghost:hover{border-color:rgba(255,255,255,0.4);color:#f2f2f0}
-.tour-btn-sm{height:26px;padding:0 10px;font-size:10px;letter-spacing:0.08em}
+.tour-btn-sm{height:26px;padding:0 10px;font-size:10px;letter-spacing:0.02em}
 `;
 
 interface Candle {
@@ -309,7 +309,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
       const pct = Math.round((shown / LAUNCH_CAP - 1) * 1000) / 10;
       if (cardValueRef.current) cardValueRef.current.textContent = usd(cardUsd);
       if (cardPctRef.current) {
-        cardPctRef.current.textContent = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}% SINCE AIRDROP`;
+        cardPctRef.current.textContent = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}% since airdrop`;
         cardPctRef.current.style.background = pct >= 0 ? GREEN : RED;
         cardPctRef.current.style.color = pct >= 0 ? '#04120c' : '#1c0909';
       }
@@ -402,10 +402,10 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
             </div>
 
             <div className="max-w-xl px-4 pt-8 sm:px-6 lg:px-10 lg:pt-10">
-              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+              <p className="font-mono text-[10px] tracking-[0.08em] text-white/40">
                 Robinhood Chain / launching soon
               </p>
-              <h1 className="mt-3 font-display text-2xl font-semibold uppercase leading-tight tracking-tight text-[#f2f2f0] sm:text-4xl">
+              <h1 className="mt-3 font-display text-2xl font-semibold leading-tight tracking-tight text-[#f2f2f0] sm:text-4xl">
                 Every milestone airdrops a real Pokemon card.
               </h1>
               <p className="mt-4 text-[13px] leading-relaxed text-white/60">
@@ -417,7 +417,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
 
             <div className="px-4 pt-8 sm:px-6 lg:px-10 lg:pt-9">
               <div className="flex flex-wrap items-end justify-between gap-2">
-                <h2 className="font-display text-xl font-semibold uppercase tracking-tight text-[#f2f2f0] sm:text-2xl">
+                <h2 className="font-display text-xl font-semibold tracking-tight text-[#f2f2f0] sm:text-2xl">
                   Buy, sell, trade
                 </h2>
                 <span className="font-mono text-[10px] text-white/40 sm:text-[11px]">
@@ -458,7 +458,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
                           className="absolute right-2.5 top-2.5 z-10 rounded-[2px] bg-[#00bd7d] px-2 py-0.5 font-mono text-[9px] font-bold text-[#04120c]"
                           style={{ opacity: reduced ? 1 : 0 }}
                         >
-                          AIRDROPPED
+                          Airdropped
                         </span>
                       )}
                       <div className="overflow-hidden rounded-[6px] border border-white/[0.14]">
@@ -488,7 +488,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
                       </p>
                       <p className="mt-1 font-mono text-xs text-[#f2f2f0]">
                         {isCardOne
-                          ? 'FREE'
+                          ? 'Free'
                           : `${(0.059 * (demo.launch / LAUNCH_CAP)).toFixed(3)} ETH`}
                       </p>
                       <div className="mt-2 flex gap-2">
@@ -550,7 +550,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
           <div className="m-auto flex w-full max-w-[960px] flex-col items-center gap-3 p-3 sm:p-4 lg:flex-row lg:justify-center lg:gap-4">
             <div className="w-full max-w-[620px] rounded-[4px] border border-white/[0.09] bg-[#0d0d0f] p-3 lg:min-w-0 lg:flex-1 lg:p-4">
               <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-2">
-                <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-white/40">
+                <span className="font-mono text-[10px] tracking-[0.08em] text-white/40">
                   POKE market cap - Robinhood Chain
                 </span>
                 <span className="font-mono text-sm text-[#f2f2f0]" ref={mcValueRef}>
@@ -669,7 +669,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
             </div>
 
             <div className="w-full rounded-[4px] border border-white/[0.09] bg-[#0d0d0f] p-4 text-center lg:w-[280px] lg:shrink-0 lg:p-6">
-              <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-white/40">
+              <p className="font-mono text-[10px] tracking-[0.08em] text-white/40">
                 Card #01 value
               </p>
               {arts[DEMO_CARDS[0].tcgId]?.image && (
@@ -692,8 +692,8 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
                 ref={cardPctRef}
               >
                 {reduced
-                  ? `${finalUp ? '+' : ''}${finalPct.toFixed(1)}% SINCE AIRDROP`
-                  : '+0.0% SINCE AIRDROP'}
+                  ? `${finalUp ? '+' : ''}${finalPct.toFixed(1)}% since airdrop`
+                  : '+0.0% since airdrop'}
               </span>
               <p className="mt-4 font-mono text-[11px] leading-relaxed text-white/60">
                 your card tracks the chart, up and down
@@ -721,11 +721,11 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
             className="pointer-events-none absolute inset-x-0 bottom-0 top-10 z-30 flex items-center justify-center bg-[#070708]/85 opacity-0"
           >
             <div className="px-6 text-center">
-              <p className="font-display text-3xl font-semibold uppercase leading-tight tracking-tight text-[#f2f2f0] sm:text-4xl md:text-5xl">
+              <p className="font-display text-3xl font-semibold leading-tight tracking-tight text-[#f2f2f0] sm:text-4xl md:text-5xl">
                 Every milestone airdrops a real Pokemon card.
               </p>
-              <p className="mt-4 font-mono text-xs tracking-[0.22em] text-[#00bd7d] sm:text-sm">
-                THE COLLECTION IS YOURS
+              <p className="mt-4 font-mono text-xs tracking-[0.12em] text-[#00bd7d] sm:text-sm">
+                The collection is yours.
               </p>
             </div>
           </div>

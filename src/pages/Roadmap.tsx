@@ -20,13 +20,13 @@ export default function Roadmap() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow">The ladder</p>
-          <h1 className="mt-2 font-display text-3xl font-semibold uppercase tracking-tight sm:text-4xl">
+          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
             Milestone roadmap
           </h1>
         </div>
-        <span className={`chip ${market.mode === 'demo' ? 'chip-neutral' : 'chip-up'}`}>
-          {market.mode === 'demo' ? 'Demo progress' : 'Live progress'}
-        </span>
+        {market.mode === 'demo' && (
+          <span className="chip chip-neutral">Demo progress</span>
+        )}
       </div>
 
       <div className="panel p-7">
@@ -45,7 +45,7 @@ export default function Roadmap() {
         </div>
         <div className="mt-5 h-1 overflow-hidden rounded-full bg-white/10">
           <div
-            className="h-full rounded-full bg-[#00bd7d] transition-all duration-700"
+            className="h-full rounded-full bg-[linear-gradient(90deg,#00bd7d,#5eead4)] shadow-[0_0_12px_rgb(0_189_125/0.45)] transition-all duration-700"
             style={{ width: `${progress}%` }}
           />
         </div>

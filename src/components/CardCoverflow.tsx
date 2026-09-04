@@ -33,9 +33,28 @@ const easeOutQuart = (t: number) => 1 - Math.pow(1 - t, 4);
  *  - hand-off rule: whichever side is travelling toward the front stacks
  *    above the card it passes, for the whole duration of the motion
  */
+/**
+ * Image sources per card, tried in order: the vendored file first, then the
+ * pokemontcg CDN (hires, then standard) for vendored cards. A transient
+ * failure moves to the next source instead of dropping the card.
+ */
+function imageSources(card: CardListItem): string[] {
+  const sources: string[] = [];
+  const primary = getCardImageUrl(card);
+  if (primary) sources.push(primary);
+  if (card.image?.startsWith('/cards/')) {
+    const [setCode, number] = card.image.slice('/cards/'.length).split('-');
+    if (setCode && number) {
+      sources.push(`https://images.pokemontcg.io/${setCode}/${number}_hires.png`);
+      sources.push(`https://images.pokemontcg.io/${setCode}/${number}.png`);
+    }
+  }
+  return sources;
+}
+
 export default function CardCoverflow({ items }: { items: CardListItem[] }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [failed, setFailed] = useState<ReadonlySet<string>>(new Set());
+  const [attempt, setAttempt] = useState<Record<string, number>>({});
   const [dragging, setDragging] = useState(false);
 
   const reduced = useMemo(
@@ -56,10 +75,21 @@ export default function CardCoverflow({ items }: { items: CardListItem[] }) {
     raf: 0,
   }).current;
 
-  const n = useMemo(
-    () => items.filter((card) => !failed.has(card.id)).length,
-    [items, failed],
+  const sources = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const card of items) map[card.id] = imageSources(card);
+    return map;
+  }, [items]);
+
+  const visible = useMemo(
+    () =>
+      items.filter(
+        (card) => (attempt[card.id] ?? 0) < (sources[card.id]?.length ?? 0),
+      ),
+    [items, attempt, sources],
   );
+
+  const n = visible.length;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -129,11 +159,6 @@ export default function CardCoverflow({ items }: { items: CardListItem[] }) {
     return () => cancelAnimationFrame(st.raf);
   }, [n, st, reduced]);
 
-  const visible = useMemo(
-    () => items.filter((card) => !failed.has(card.id)),
-    [items, failed],
-  );
-
   if (visible.length === 0) {
     return (
       <div className="orbit-stage" aria-hidden>
@@ -201,11 +226,14 @@ export default function CardCoverflow({ items }: { items: CardListItem[] }) {
         onDragStart={(event) => event.preventDefault()}
       >
         {visible.map((card, i) => {
+          const cardSources = sources[card.id] ?? [];
+          const src = cardSources[attempt[card.id] ?? 0];
           return (
             <div className="orbit-card" data-i={i} key={card.id}>
-              {card.image && !failed.has(card.id) ? (
+              {src ? (
                 <img
-                  src={getCardImageUrl(card)}
+                  key={src}
+                  src={src}
                   alt={card.name || card.id}
                   draggable={false}
                   onLoad={(event) => event.currentTarget.classList.add('ready')}
@@ -216,7 +244,10 @@ export default function CardCoverflow({ items }: { items: CardListItem[] }) {
                     }
                   }}
                   onError={() =>
-                    setFailed((prev) => new Set(prev).add(card.id))
+                    setAttempt((prev) => ({
+                      ...prev,
+                      [card.id]: (prev[card.id] ?? 0) + 1,
+                    }))
                   }
                 />
               ) : (

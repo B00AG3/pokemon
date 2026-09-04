@@ -13,6 +13,7 @@
  * VITE_POKEMONTCG_API_KEY.
  */
 import type { CardImageOptions, EnergyType, TCGCard } from '../types/pokemontcg';
+import { LADDER_CARD_MANIFEST } from '../data/ladderCards';
 
 const BASE_URL = 'https://api.pokemontcg.io/v2';
 const IMAGES_BASE = 'https://images.pokemontcg.io';
@@ -150,6 +151,10 @@ export function getCardImageUrl(
 
 /** GET /v2/cards/:id - full card payload mapped onto the UI models. */
 export async function getCardById(id: string): Promise<TCGCard> {
+  // Ladder cards ship with the site (metadata manifest + public/cards
+  // artwork): no network, no API dependency for the core experience.
+  const local = LADDER_CARD_MANIFEST[id];
+  if (local) return local;
   const cached = readCache(id);
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.card;
   try {

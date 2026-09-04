@@ -275,7 +275,10 @@ async function main() {
   console.log(`VITE_SALE_ADDRESS=  # skipped (DEPLOY_SALE=0)`);
   console.log(`VITE_SWAP_ADDRESS=${record.swap}`);
 
-  const keeperKey = process.env.KEEPER_PRIVATE_KEY;
+  // Single-wallet smoke run: when no dedicated keeper key is configured the
+  // deployer acts as the keeper (the deploy already defaults KEEPER_ADDRESS
+  // to the deployer), so only one funded wallet is needed.
+  const keeperKey = process.env.KEEPER_PRIVATE_KEY ?? process.env.PRIVATE_KEY;
   if (process.env.START_KEEPER === '0') {
     console.log('\nkeeper not started (START_KEEPER=0). Start it with:');
     console.log(
@@ -284,7 +287,7 @@ async function main() {
     return;
   }
   if (!keeperKey) {
-    console.log('\nno KEEPER_PRIVATE_KEY in contracts/.env - start the keeper with:');
+    console.log('\nno PRIVATE_KEY/KEEPER_PRIVATE_KEY in contracts/.env - start the keeper with:');
     console.log(
       `  KEEPER_PRIVATE_KEY=*** CARDS_ADDRESS=${record.cards} KEEPER_RPC_URL=${rpcUrl} npm run keeper`,
     );

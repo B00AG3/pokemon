@@ -4,14 +4,14 @@ import { useCallback, useEffect, useState } from 'react';
  * Simulated portfolio ledger for the demo market, persisted to localStorage
  * and keyed by connected wallet address (guests share a scratch account).
  * Tracks a per-card cost basis plus realized P&L so the Portfolio page can
- * show unrealized vs realized returns. Two simulated traders own the other
- * cards so trading has counterparties.
+ * show unrealized vs realized returns. Three simulated traders own the other
+ * cards so trading has counterparties; airdrop wins land with no cost basis.
  */
 
 interface DemoAccount {
   eth: number;
   cards: string[];
-  /** ETH paid per owned card (buy price, or trade basis). */
+  /** ETH paid per owned card (buy price, trade basis, or absent for airdrops). */
   cost: Record<string, number>;
   /** Cumulative realized profit or loss, in ETH. */
   realized: number;
@@ -19,8 +19,7 @@ interface DemoAccount {
 
 type DemoState = Record<string, DemoAccount>;
 
-const STORAGE_KEY = 'pokecard-demo-v2';
-const LEGACY_KEY = 'pokecard-demo-v1';
+const STORAGE_KEY = 'pokecard-demo-v3';
 const GUEST_START_ETH = 2;
 
 function emptyAccount(): DemoAccount {
@@ -30,25 +29,11 @@ function emptyAccount(): DemoAccount {
 const NPCS: DemoState = {
   'npc-1': { eth: 25, cards: ['demo-2'], cost: { 'demo-2': 0.05 }, realized: 0 },
   'npc-2': { eth: 25, cards: ['demo-3'], cost: { 'demo-3': 0.042 }, realized: 0 },
+  // npc-3 won card #01 in the seeded airdrop and still holds it
+  'npc-3': { eth: 25, cards: ['demo-1'], cost: {}, realized: 0 },
 };
 
 function load(): DemoState {
-  // one-time migration from v1: carry balances and holdings, cost basis
-  // defaults to the current price at first render (unrealized starts at 0)
-  try {
-    const legacy = localStorage.getItem(LEGACY_KEY);
-    if (legacy && !localStorage.getItem(STORAGE_KEY)) {
-      const parsed = JSON.parse(legacy) as Record<string, { eth: number; cards: string[] }>;
-      const migrated: DemoState = {};
-      for (const [key, account] of Object.entries(parsed)) {
-        migrated[key] = { ...emptyAccount(), eth: account.eth, cards: account.cards };
-      }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-      localStorage.removeItem(LEGACY_KEY);
-    }
-  } catch {
-    /* unreadable legacy state - skip migration */
-  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return { ...NPCS, ...(JSON.parse(raw) as DemoState) };
@@ -147,30 +132,17 @@ export function useDemoPortfolio(address?: string) {
   );
 
   /**
-   * Swap one of your cards for another card, settling the ETH price
-   * difference. Booked as a sale of the given card plus a buy of the
-   * received card at (give price + delta) so P&L stays consistent.
+   * Land an airdrop: the card moves from unowned to the winner with no ETH
+   * changing hands and no cost basis (it was free).
    */
-  const trade = useCallback(
-    (giveCardId: string, getCardId: string, deltaEth: number, givePrice: number) => {
+  const claimAirdrop = useCallback(
+    (cardId: string, winnerKey: string) => {
       mutate((draft) => {
-        const me = ensureAccount(draft, userKey);
-        if (!me.cards.includes(giveCardId)) return;
-        const counterparty =
-          Object.keys(draft).find((key) => draft[key].cards.includes(getCardId)) ?? 'treasury';
-        if (counterparty === userKey) return;
-        if (deltaEth > 0 && me.eth < deltaEth) return;
-
-        me.eth -= deltaEth;
-        if (counterparty !== 'treasury') draft[counterparty].eth += deltaEth;
-        const basis = givePrice + deltaEth;
-        moveCard(draft, userKey, counterparty, giveCardId);
-        moveCard(draft, counterparty, userKey, getCardId);
-        me.realized += givePrice - (me.cost[giveCardId] ?? givePrice);
-        me.cost[getCardId] = basis;
+        const winner = ensureAccount(draft, winnerKey);
+        if (!winner.cards.includes(cardId)) winner.cards.push(cardId);
       });
     },
-    [mutate, userKey],
+    [mutate],
   );
 
   return {
@@ -181,7 +153,7 @@ export function useDemoPortfolio(address?: string) {
     ownerOf,
     buy,
     sell,
-    trade,
+    claimAirdrop,
     isGuest: !address,
   };
 }

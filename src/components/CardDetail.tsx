@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { formatEth } from '../demo/market';
+import { useEffect, useRef, useState } from 'react';
+import { ETH_USD, formatEth } from '../demo/market';
 
 export interface DetailCard {
   id: string;
@@ -15,22 +15,14 @@ export interface DetailCard {
   isMine: boolean;
 }
 
-export interface TradeTarget {
-  id: string;
-  name: string;
-  image?: string;
-  price: number;
-}
-
 interface CardDetailProps {
   card: DetailCard;
-  tradeOptions: TradeTarget[];
-  eth: number;
   marketCap: number;
+  chartValueEth?: number;
   onBack: () => void;
   onBuy: () => void;
   onSell: () => void;
-  onTrade: (giveId: string, getId: string) => void;
+  onRedeem?: () => void;
 }
 
 function PokeballBack() {
@@ -51,67 +43,55 @@ function Accordion({ label, children }: { label: string; children: React.ReactNo
     <details className="group border-t border-white/10 py-4">
       <summary className="flex cursor-pointer list-none items-center justify-between font-mono text-[11px] uppercase tracking-[0.18em] text-white/70">
         {label}
-        <span className="text-white/30 transition group-open:rotate-90">›</span>
+        <span className="text-white/45 transition group-open:rotate-90">›</span>
       </summary>
-      <div className="pt-3 text-sm font-light leading-relaxed text-white/55">{children}</div>
+      <div className="pt-3 text-sm leading-relaxed text-white/55">{children}</div>
     </details>
   );
 }
 
 /**
  * Full product page for a single card (Balenciaga-style split layout):
- * flip artwork on the left, details / accordion / trade picker / actions on
- * the right. Rendered as a fixed overlay so it behaves like its own page.
+ * flip artwork on the left, details / accordion / actions on the right.
+ * Rendered as a fixed overlay so it behaves like its own page.
  */
 export default function CardDetail({
   card,
-  tradeOptions,
-  eth,
   marketCap,
+  chartValueEth,
   onBack,
   onBuy,
   onSell,
-  onTrade,
+  onRedeem,
 }: CardDetailProps) {
   const [flipped, setFlipped] = useState(false);
-  const [targetId, setTargetId] = useState<string | null>(null);
   const [backFailed, setBackFailed] = useState(false);
+  const backRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setFlipped(false);
-    setTargetId(null);
   }, [card.id]);
 
-  const imageUrl = card.image ? `${card.image}/high.png` : undefined;
-  const usdValue = card.price * 3000;
-
-  // trade bookkeeping: acquiring this card (give one of yours) or swapping
-  // this card away for another one you want
-  const giveMode = card.isMine;
-  const selected = tradeOptions.find((t) => t.id === targetId) ?? null;
-  const delta =
-    giveMode && selected
-      ? Math.round((selected.price - card.price) * 1000) / 1000
-      : 0;
-  const affordable = delta <= 0 || eth >= delta;
-
-  // auto-select the first trade option whenever the option set changes
-  const optionKey = tradeOptions.map((t) => t.id).join(',');
+  // overlay behaves like a page: focus starts on the way out, Escape leaves
   useEffect(() => {
-    setTargetId(tradeOptions[0]?.id ?? null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [optionKey]);
+    backRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onBack();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onBack]);
 
-  const confirmTrade = () => {
-    if (giveMode && selected) onTrade(card.id, selected.id);
-    if (!giveMode && selected) onTrade(selected.id, card.id);
-  };
+  const imageUrl = card.image ? `${card.image}/high.png` : undefined;
+  const usdValue = card.price * ETH_USD;
+  const chartLabel = chartValueEth !== undefined ? formatEth(chartValueEth) : undefined;
 
   return (
     <div className="fixed inset-0 z-40 overflow-y-auto bg-[#050505]">
       <div className="mx-auto max-w-6xl px-6 pb-20 pt-6">
         <button
           type="button"
+          ref={backRef}
           onClick={onBack}
           className="font-mono text-xs text-white/50 transition hover:text-white"
         >
@@ -121,11 +101,12 @@ export default function CardDetail({
         <div className="mt-6 grid gap-12 lg:grid-cols-2">
           {/* left: flip artwork */}
           <div>
-            <div
-              className="flip-scene mx-auto w-full max-w-[400px] cursor-pointer"
+            <button
+              type="button"
+              className="flip-scene mx-auto block w-full max-w-[400px] cursor-pointer bg-transparent p-0"
               onClick={() => setFlipped((value) => !value)}
-              role="button"
               aria-label="Flip card"
+              aria-pressed={flipped}
             >
               <div className={`flip-inner ${flipped ? 'flipped' : ''}`}>
                 <div className="flip-face">
@@ -133,15 +114,15 @@ export default function CardDetail({
                     <img
                       src={imageUrl}
                       alt={card.name}
-                      className="aspect-[245/342] w-full rounded-xl border border-white/10 object-cover shadow-2xl shadow-black/70"
+                      className="aspect-[245/342] w-full rounded-[6px] border border-white/12 object-cover shadow-2xl shadow-black/70"
                       draggable={false}
                     />
                   ) : (
-                    <div className="aspect-[245/342] w-full rounded-xl border border-white/10 bg-white/[0.04]" />
+                    <div className="aspect-[245/342] w-full rounded-[6px] border border-white/12 bg-white/[0.04]" />
                   )}
                 </div>
                 <div className="flip-face flip-back">
-                  <div className="aspect-[245/342] w-full overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/70">
+                  <div className="aspect-[245/342] w-full overflow-hidden rounded-[6px] border border-white/12 bg-white/[0.04] shadow-2xl shadow-black/70">
                     {backFailed ? (
                       <PokeballBack />
                     ) : (
@@ -156,8 +137,8 @@ export default function CardDetail({
                   </div>
                 </div>
               </div>
-            </div>
-            <p className="mt-4 text-center font-mono text-[11px] text-white/35">
+            </button>
+            <p className="mt-4 text-center font-mono text-[11px] text-white/45">
               front / back
             </p>
           </div>
@@ -165,34 +146,38 @@ export default function CardDetail({
           {/* right: details */}
           <div>
             <p className="eyebrow">
-              PokeCard milestone card - #{String(card.cardNumber).padStart(2, '0')}
+              Milestone card - #{String(card.cardNumber).padStart(2, '0')}
             </p>
             <h1 className="mt-3 font-display text-3xl font-semibold uppercase tracking-tight sm:text-4xl">
               {card.name}
             </h1>
             <p className="mt-2 font-mono text-lg text-white">
-              {formatEth(card.price)}{' '}
-              <span className="text-xs text-white/40">
-                (~${usdValue.toLocaleString('en-US', { maximumFractionDigits: 2 })})
-              </span>
+              {card.price > 0 ? (
+                <>
+                  {formatEth(card.price)}{' '}
+                  <span className="text-xs text-white/40">
+                    (~${usdValue.toLocaleString('en-US', { maximumFractionDigits: 2 })})
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm text-white/40">not listed - holder decides</span>
+              )}
             </p>
 
-            <p className="mt-6 text-sm font-light leading-relaxed text-white/60">
-              Official PokeCard Lab milestone card, minted once when the token
-              crossed ${card.launchMc.toLocaleString('en-US')} market cap on the
-              Robinhood Chain. Its price rides the token: as the chart climbs,
-              so does the value of every card in the collection.
+            <p className="mt-6 text-sm leading-relaxed text-white/60">
+              Airdropped free to a drawn holder when the token crossed $
+              {card.launchMc.toLocaleString('en-US')} market cap on the
+              Robinhood Chain. From there its price is whatever a holder asks,
+              with the chart as the reference.
             </p>
             {card.tcgDescription && (
-              <p className="mt-4 text-sm font-light leading-relaxed text-white/60">
+              <p className="mt-4 text-sm leading-relaxed text-white/60">
                 {card.tcgDescription}
               </p>
             )}
-            <p className="mt-4 text-sm font-light leading-relaxed text-white/60">
-              Currently held by{' '}
-              <span className="text-white">{card.ownerLabel}</span>. Each card
-              mints exactly once - the cheapest it will ever be is the day it
-              mints.
+            <p className="mt-4 text-sm leading-relaxed text-white/60">
+              Currently held by <span className="text-white">{card.ownerLabel}</span>.
+              Each card airdrops exactly once.
             </p>
 
             <div className="mt-8">
@@ -202,30 +187,28 @@ export default function CardDetail({
                   : 'Set information unavailable for this card.'}
               </Accordion>
               <Accordion label={`Rarity: ${card.rarity ?? 'Unknown'}`}>
-                Original TCG print rarity. Holo rarities carry the rainbow foil
-                layer in your PokeCard collection.
+                Original TCG print rarity. Holo prints carry the rainbow foil
+                layer.
               </Accordion>
               <Accordion label="Backing">
-                Backed by real TCG assets - every milestone card carries the
-                artwork of a real Pokemon TCG collectible, one card per
-                milestone, never minted again.
+                Every milestone card carries the artwork of a real Pokemon TCG
+                card - one card per milestone, airdropped once, never again.
               </Accordion>
               <Accordion label={`Milestone: ${card.launchMc.toLocaleString('en-US')} market cap`}>
-                This card minted when the token crossed{' '}
+                This card airdropped when the token crossed{' '}
                 ${card.launchMc.toLocaleString('en-US')}. The current market cap
-                is ${marketCap.toLocaleString('en-US')}, and card prices scale
-                with that ratio: at twice the launch cap, a card trades at twice
-                its base price.
+                is ${marketCap.toLocaleString('en-US')}. Reference prices scale
+                with that ratio: twice the launch cap, twice the reference.
               </Accordion>
               <Accordion label="Ownership">
-                Held by {card.ownerLabel}. Sell to the market or swap with
-                another holder - every transfer settles on the Robinhood Chain.
+                Held by {card.ownerLabel}. When they list it, anyone can buy -
+                every transfer settles on the Robinhood Chain.
               </Accordion>
             </div>
 
             {/* actions */}
             <div className="mt-8 space-y-3">
-              {!card.isMine && (
+              {!card.isMine && card.price > 0 && (
                 <button
                   type="button"
                   className="btn btn-primary w-full"
@@ -234,7 +217,15 @@ export default function CardDetail({
                   Buy - {formatEth(card.price)}
                 </button>
               )}
-              {card.isMine && (
+              {!card.isMine && card.price === 0 && (
+                <p className="font-mono text-xs text-white/40">
+                  Not listed for ETH.{' '}
+                  {chartLabel
+                    ? `Chart value: ${chartLabel} - redeemable by the holder at any time.`
+                    : 'Chart value settles once the keeper records its first cap checkpoint.'}
+                </p>
+              )}
+              {card.isMine && card.price > 0 && (
                 <button
                   type="button"
                   className="btn btn-primary w-full"
@@ -243,72 +234,19 @@ export default function CardDetail({
                   Sell - {formatEth(card.price)}
                 </button>
               )}
+              {card.isMine && card.price === 0 && onRedeem && (
+                <button
+                  type="button"
+                  className="btn btn-primary w-full"
+                  onClick={onRedeem}
+                >
+                  {chartLabel ? `Redeem - ${chartLabel}` : 'Redeem at chart value'}
+                </button>
+              )}
             </div>
 
-            {/* trade-for picker, mirroring the "other sizes" pattern */}
-            {tradeOptions.length > 0 && (
-              <div className="mt-8 border-t border-white/10 pt-6">
-                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-white/70">
-                  {giveMode ? 'Trade this card for' : 'Trade one of your cards for this'}
-                </p>
-                <div className="mt-4 flex gap-4">
-                  {tradeOptions.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      className="group w-24 text-left"
-                      onClick={() => setTargetId(option.id)}
-                    >
-                      <div
-                        className={`overflow-hidden rounded-lg border-2 transition ${
-                          targetId === option.id
-                            ? 'border-[#00bd7d]'
-                            : 'border-white/10 group-hover:border-white/30'
-                        }`}
-                      >
-                        {option.image ? (
-                          <img
-                            src={`${option.image}/low.webp`}
-                            alt={option.name}
-                            className="aspect-[245/342] w-full object-cover"
-                            draggable={false}
-                          />
-                        ) : (
-                          <div className="aspect-[245/342] w-full bg-white/[0.04]" />
-                        )}
-                      </div>
-                      <p className="mt-1.5 truncate text-center text-[11px] text-white/55">
-                        {option.name}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-
-                {selected && (
-                  <button
-                    type="button"
-                    className="btn btn-primary mt-5 w-full disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={!affordable}
-                    onClick={() => confirmTrade()}
-                  >
-                    {delta > 0
-                      ? `Confirm trade - pay ${formatEth(delta)}`
-                      : delta < 0
-                        ? `Confirm trade - receive ${formatEth(-delta)}`
-                        : 'Confirm trade'}
-                    {!affordable && ' (not enough demo ETH)'}
-                  </button>
-                )}
-              </div>
-            )}
-            {!card.isMine && tradeOptions.length === 0 && (
-              <p className="mt-8 border-t border-white/10 pt-6 font-mono text-xs text-white/40">
-                buy a card first to trade with other holders.
-              </p>
-            )}
-
-            <p className="mt-6 text-center font-mono text-[11px] text-white/30 lg:text-right">
-              settlement: instant on the Robinhood Chain
+            <p className="mt-6 text-center font-mono text-[11px] text-white/45 lg:text-right">
+              settlement on the Robinhood Chain
             </p>
           </div>
         </div>

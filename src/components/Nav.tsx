@@ -30,10 +30,10 @@ export default function Nav({ onHowItWorks }: { onHowItWorks?: () => void }) {
   const location = useLocation();
 
   return (
-    <nav className="flex flex-wrap items-center justify-between gap-3 py-6">
+    <nav className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 py-5">
       <Link to="/" className="flex items-center gap-2.5">
         <PokeballMark className="h-6 w-6 text-white" />
-        <span className="text-[15px] font-semibold tracking-tight">
+        <span className="font-display text-[17px] font-medium uppercase tracking-wide">
           PokeCard Lab
         </span>
       </Link>
@@ -45,8 +45,8 @@ export default function Nav({ onHowItWorks }: { onHowItWorks?: () => void }) {
               to={link.to}
               end={link.to === '/'}
               className={({ isActive }) =>
-                `text-[13px] transition ${
-                  isActive ? 'text-white' : 'text-white/45 hover:text-white/80'
+                `font-mono text-[12px] uppercase tracking-wide transition ${
+                  isActive ? 'text-white' : 'text-white/45 hover:text-white/85'
                 }`
               }
             >
@@ -59,7 +59,7 @@ export default function Nav({ onHowItWorks }: { onHowItWorks?: () => void }) {
             <button
               type="button"
               onClick={onHowItWorks}
-              className="btn btn-ghost !gap-2 !px-4 !py-2.5 text-[13px]"
+              className="btn btn-ghost !h-9 !px-3.5 !text-[10px]"
             >
               <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden>
                 <path d="M8 5v14l11-7z" />

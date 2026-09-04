@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { seedEvents, type MarketEvent } from './events';
 
-const STORAGE_KEY = 'pokecard-events-v1';
+const STORAGE_KEY = 'pokecard-events-v2';
 const MAX_EVENTS = 100;
 
 /**

@@ -2,30 +2,22 @@ import { useState } from 'react';
 import { useAccount, usePublicClient, useWriteContract } from 'wagmi';
 import { useQuery } from '@tanstack/react-query';
 import { formatEther, formatUnits, parseAbiItem, type Address } from 'viem';
-import { CONTRACTS, cardSaleAbi, cardSwapAbi, milestoneCardsAbi } from './contracts';
+import { CONTRACTS, cardSwapAbi, milestoneCardsAbi } from './contracts';
+import { targetChain } from './config';
 import type { MarketEvent } from '../demo/events';
 
 /**
- * Live-mode market actions against CardSale (treasury buys) and CardSwap
- * (peer-to-peer listings and card-for-card swaps), plus reads for open swap
- * offers and recent on-chain activity. Every helper no-ops (throws) until
- * the contract addresses are configured in .env.
+ * Live-mode market actions: entering and leaving the airdrop draw on
+ * MilestoneCards, plus CardSwap escrowed ETH listings (list, buy, unlist).
+ * Also hosts the recent on-chain activity read. Every helper no-ops (throws)
+ * until the contract addresses are configured in .env. Writes pin the target
+ * chain so a wallet on another network switches (or fails loudly) instead of
+ * sending Robinhood addresses to the wrong chain.
  */
-
-export interface SwapOfferView {
-  offerId: number;
-  maker: string;
-  giveTokenId: number;
-  wantTokenId: number;
-  ethAskEth: number;
-  active: boolean;
-}
-
-const MAX_OFFERS_SCANNED = 64;
 
 export function useMarketWrites() {
   const { writeContractAsync } = useWriteContract();
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: targetChain.id });
   const { address } = useAccount();
   const [busy, setBusy] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
@@ -50,7 +42,12 @@ export function useMarketWrites() {
     return CONTRACTS.swap;
   };
 
-  /** Approve one tokenId for the swap escrow when not already approved. */
+  const requireCards = () => {
+    if (!CONTRACTS.cards) throw new Error('MilestoneCards address not configured');
+    return CONTRACTS.cards;
+  };
+
+  /** Approve one tokenId for the escrow when not already approved. */
   const ensureApproval = async (tokenId: bigint): Promise<void> => {
     if (!publicClient || !address) return;
     const swap = requireSwap();
@@ -75,6 +72,7 @@ export function useMarketWrites() {
           abi: milestoneCardsAbi,
           functionName: 'approve',
           args: [swap, tokenId],
+          chainId: targetChain.id,
         }),
     );
   };
@@ -85,17 +83,27 @@ export function useMarketWrites() {
     address,
     connected: Boolean(address),
 
-    buyFromSale: (tokenId: bigint, priceWei: bigint) =>
+    enterDraw: () =>
       run(
-        `Buying card #${tokenId} from the treasury`,
+        'Entering the holder draw',
         () =>
           writeContractAsync({
-            address: CONTRACTS.sale!,
-            abi: cardSaleAbi,
-            functionName: 'buy',
-            args: [tokenId],
-            // 5% buffer over the dynamic price; the contract refunds excess
-            value: (priceWei * 105n) / 100n,
+            address: requireCards(),
+            abi: milestoneCardsAbi,
+            functionName: 'enterDraw',
+            chainId: targetChain.id,
+          }),
+      ),
+
+    leaveDraw: () =>
+      run(
+        'Leaving the holder draw',
+        () =>
+          writeContractAsync({
+            address: requireCards(),
+            abi: milestoneCardsAbi,
+            functionName: 'leaveDraw',
+            chainId: targetChain.id,
           }),
       ),
 
@@ -108,7 +116,8 @@ export function useMarketWrites() {
             abi: cardSwapAbi,
             functionName: 'buy',
             args: [tokenId],
-            value: (priceWei * 105n) / 100n,
+            value: priceWei, // escrow charges exactly the listing price
+            chainId: targetChain.id,
           }),
       ),
 
@@ -120,6 +129,7 @@ export function useMarketWrites() {
           abi: cardSwapAbi,
           functionName: 'list',
           args: [tokenId, priceWei],
+          chainId: targetChain.id,
         }),
       );
     },
@@ -131,83 +141,27 @@ export function useMarketWrites() {
           abi: cardSwapAbi,
           functionName: 'cancelListing',
           args: [tokenId],
+          chainId: targetChain.id,
         }),
       ),
 
-    createSwapOffer: async (giveTokenId: bigint, wantTokenId: bigint, ethAskWei: bigint) => {
-      await ensureApproval(giveTokenId);
-      await run('Creating swap offer', () =>
-        writeContractAsync({
-          address: requireSwap(),
-          abi: cardSwapAbi,
-          functionName: 'offerSwap',
-          args: [giveTokenId, wantTokenId, ethAskWei],
-        }),
-      );
-    },
-
-    cancelSwapOffer: (offerId: number) =>
-      run('Cancelling swap offer', () =>
-        writeContractAsync({
-          address: requireSwap(),
-          abi: cardSwapAbi,
-          functionName: 'cancelSwap',
-          args: [BigInt(offerId)],
-        }),
+    redeemCard: (tokenId: bigint) =>
+      run(
+        `Redeeming card #${tokenId} at its chart value`,
+        () =>
+          writeContractAsync({
+            address: requireCards(),
+            abi: milestoneCardsAbi,
+            functionName: 'redeem',
+            args: [tokenId],
+            chainId: targetChain.id,
+          }),
       ),
-
-    acceptSwapOffer: async (offerId: number, wantTokenId: bigint, ethAskWei: bigint) => {
-      await ensureApproval(wantTokenId);
-      await run('Accepting swap offer', () =>
-        writeContractAsync({
-          address: requireSwap(),
-          abi: cardSwapAbi,
-          functionName: 'acceptSwap',
-          args: [BigInt(offerId)],
-          value: ethAskWei > 0n ? (ethAskWei * 105n) / 100n : undefined,
-        }),
-      );
-    },
   };
 }
 
-/** Open (and recently finished) swap offers on CardSwap. */
-export function useSwapOffers(enabled: boolean) {
-  const publicClient = usePublicClient();
-  return useQuery({
-    queryKey: ['swap-offers', CONTRACTS.swap, publicClient?.chain.id],
-    enabled: enabled && Boolean(CONTRACTS.swap && publicClient),
-    refetchInterval: 15_000,
-    queryFn: async (): Promise<SwapOfferView[]> => {
-      const swap = CONTRACTS.swap!;
-      const count = Number(
-        (await publicClient!.readContract({ address: swap, abi: cardSwapAbi, functionName: 'offerCount' })) as bigint,
-      );
-      const scanned = Math.min(count, MAX_OFFERS_SCANNED);
-      const offers: SwapOfferView[] = [];
-      for (let i = 0; i < scanned; i++) {
-        const raw = (await publicClient!.readContract({
-          address: swap,
-          abi: cardSwapAbi,
-          functionName: 'offers',
-          args: [BigInt(i)],
-        })) as { maker: string; giveTokenId: bigint; wantTokenId: bigint; ethAsk: bigint; active: boolean };
-        offers.push({
-          offerId: i,
-          maker: raw.maker,
-          giveTokenId: Number(raw.giveTokenId),
-          wantTokenId: Number(raw.wantTokenId),
-          ethAskEth: Number(formatEther(raw.ethAsk)),
-          active: raw.active,
-        });
-      }
-      return offers;
-    },
-  });
-}
-
 const milestoneMintedEvent = parseAbiItem(
-  'event MilestoneMinted(uint256 indexed index, uint256 indexed tokenId, uint256 marketCap)',
+  'event MilestoneMinted(uint256 indexed index, uint256 indexed tokenId, uint256 marketCap, address indexed to)',
 );
 const saleSoldEvent = parseAbiItem(
   'event CardSold(uint256 indexed tokenId, address indexed buyer, uint256 price, uint256 marketCap)',
@@ -215,16 +169,13 @@ const saleSoldEvent = parseAbiItem(
 const swapSoldEvent = parseAbiItem(
   'event CardSold(uint256 indexed tokenId, address indexed seller, address indexed buyer, uint256 price)',
 );
-const swapOfferedEvent = parseAbiItem(
-  'event SwapOffered(uint256 indexed offerId, address indexed maker, uint256 giveTokenId, uint256 wantTokenId, uint256 ethAsk)',
-);
-const swapAcceptedEvent = parseAbiItem(
-  'event SwapAccepted(uint256 indexed offerId, address indexed taker)',
+const cardRedeemedEvent = parseAbiItem(
+  'event CardRedeemed(uint256 indexed tokenId, address indexed holder, uint256 price)',
 );
 
-/** Recent mints, sales, and swaps from contract logs, newest first. */
+/** Recent airdrops and ETH sales from contract logs, newest first. */
 export function useChainActivity(enabled: boolean) {
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: targetChain.id });
   return useQuery({
     queryKey: ['chain-activity', CONTRACTS.cards, publicClient?.chain.id],
     enabled: enabled && Boolean(CONTRACTS.cards && publicClient),
@@ -234,7 +185,7 @@ export function useChainActivity(enabled: boolean) {
       const latest = await client.getBlockNumber();
       const fromBlock = latest > 50_000n ? latest - 50_000n : 0n;
 
-      const [mints, saleSales, swapSales, offered, accepted] = await Promise.all([
+      const [mints, saleSales, swapSales, redemptions] = await Promise.all([
         client.getLogs({ address: CONTRACTS.cards!, event: milestoneMintedEvent, fromBlock, toBlock: 'latest' }),
         CONTRACTS.sale
           ? client.getLogs({ address: CONTRACTS.sale, event: saleSoldEvent, fromBlock, toBlock: 'latest' })
@@ -242,16 +193,11 @@ export function useChainActivity(enabled: boolean) {
         CONTRACTS.swap
           ? client.getLogs({ address: CONTRACTS.swap, event: swapSoldEvent, fromBlock, toBlock: 'latest' })
           : Promise.resolve([]),
-        CONTRACTS.swap
-          ? client.getLogs({ address: CONTRACTS.swap, event: swapOfferedEvent, fromBlock, toBlock: 'latest' })
-          : Promise.resolve([]),
-        CONTRACTS.swap
-          ? client.getLogs({ address: CONTRACTS.swap, event: swapAcceptedEvent, fromBlock, toBlock: 'latest' })
-          : Promise.resolve([]),
+        client.getLogs({ address: CONTRACTS.cards!, event: cardRedeemedEvent, fromBlock, toBlock: 'latest' }),
       ]);
 
       const blockNumbers = new Set<bigint>();
-      for (const log of [...mints, ...saleSales, ...swapSales, ...offered, ...accepted]) {
+      for (const log of [...mints, ...saleSales, ...swapSales, ...redemptions]) {
         if (log.blockNumber) blockNumbers.add(log.blockNumber);
       }
       const timestamps = new Map<bigint, number>();
@@ -271,7 +217,7 @@ export function useChainActivity(enabled: boolean) {
           id: `chain-mint-${log.transactionHash}-${log.logIndex}`,
           type: 'mint',
           ts: ts(log),
-          accountKey: 'treasury',
+          accountKey: log.args.to ?? 'treasury',
           cardId: `card-${log.args.tokenId ?? 0n}`,
           priceEth: undefined,
         });
@@ -286,6 +232,16 @@ export function useChainActivity(enabled: boolean) {
           priceEth: Number(formatUnits(log.args.price ?? 0n, 18)),
         });
       }
+      for (const log of redemptions) {
+        events.push({
+          id: `chain-redeem-${log.transactionHash}-${log.logIndex}`,
+          type: 'sell',
+          ts: ts(log),
+          accountKey: log.args.holder ?? 'unknown',
+          cardId: `card-${log.args.tokenId ?? 0n}`,
+          priceEth: Number(formatEther(log.args.price ?? 0n)),
+        });
+      }
       for (const log of swapSales) {
         events.push({
           id: `chain-swapsale-${log.transactionHash}-${log.logIndex}`,
@@ -294,55 +250,6 @@ export function useChainActivity(enabled: boolean) {
           accountKey: log.args.buyer ?? 'unknown',
           cardId: `card-${log.args.tokenId ?? 0n}`,
           priceEth: Number(formatEther(log.args.price ?? 0n)),
-        });
-      }
-      for (const log of offered) {
-        events.push({
-          id: `chain-offer-${log.transactionHash}-${log.logIndex}`,
-          type: 'trade',
-          ts: ts(log),
-          accountKey: log.args.maker ?? 'unknown',
-          giveCardId: `card-${log.args.giveTokenId ?? 0n}`,
-          getCardId: `card-${log.args.wantTokenId ?? 0n}`,
-          priceEth: Number(formatEther(log.args.ethAsk ?? 0n)),
-        });
-      }
-      // SwapAccepted only carries the offer id; resolve the token pair from
-      // the offered logs, falling back to a chain read for old offers
-      const offerDetails = new Map<number, { give: bigint; want: bigint }>();
-      for (const log of offered) {
-        offerDetails.set(Number(log.args.offerId ?? -1n), {
-          give: log.args.giveTokenId ?? 0n,
-          want: log.args.wantTokenId ?? 0n,
-        });
-      }
-      for (const log of accepted) {
-        const offerId = Number(log.args.offerId ?? -1n);
-        let give = offerDetails.get(offerId)?.give;
-        let want = offerDetails.get(offerId)?.want;
-        if (give === undefined && CONTRACTS.swap) {
-          try {
-            const raw = (await client.readContract({
-              address: CONTRACTS.swap,
-              abi: cardSwapAbi,
-              functionName: 'offers',
-              args: [BigInt(offerId)],
-            })) as { giveTokenId: bigint; wantTokenId: bigint };
-            give = raw.giveTokenId;
-            want = raw.wantTokenId;
-          } catch {
-            give = 0n;
-            want = 0n;
-          }
-        }
-        events.push({
-          id: `chain-accept-${log.transactionHash}-${log.logIndex}`,
-          type: 'trade',
-          ts: ts(log),
-          accountKey: log.args.taker ?? 'unknown',
-          giveCardId: `card-${want ?? 0n}`,
-          getCardId: `card-${give ?? 0n}`,
-          priceEth: 0,
         });
       }
 

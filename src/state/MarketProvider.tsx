@@ -7,19 +7,21 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useAccount, useBalance } from 'wagmi';
+import { useAccount, useBalance, useSwitchChain } from 'wagmi';
 import { useQueryClient } from '@tanstack/react-query';
-import { formatEther, parseEther } from 'viem';
+import { formatEther, maxUint256, parseEther } from 'viem';
 import { getCardById } from '../services/tcgdex';
 import { DEMO_CARDS, ETH_USD, priceEth } from '../demo/market';
 import { useDemoMarket } from '../demo/useDemoMarket';
 import { useDemoPortfolio } from '../demo/useDemoPortfolio';
+import { useDemoDraw } from '../demo/useDemoDraw';
 import { useDemoEvents } from '../demo/useDemoEvents';
 import type { MarketEvent } from '../demo/events';
 import { useMilestoneState } from '../web3/useMilestoneState';
 import { useCardMarket, type ChainCard } from '../web3/useCardMarket';
-import { useMarketWrites, useSwapOffers, useChainActivity } from '../web3/useMarketWrites';
+import { useMarketWrites, useChainActivity } from '../web3/useMarketWrites';
 import { LIVE_MODE } from '../web3/contracts';
+import { targetChain } from '../web3/config';
 import { LADDER_TCG_IDS } from '../constants/ladder';
 
 export interface CardArt {
@@ -36,13 +38,15 @@ export interface MarketCard {
   tcgId: string;
   launchUsd: number;
   priceEth: number;
-  priceWei?: bigint; // exact live price for buys (undefined when unlisted)
+  priceWei?: bigint; // exact live listing price for buys (undefined when unlisted)
   usd?: number; // demo fiat reference
   ownerKey: string;
   minted: boolean;
   buyable: boolean;
   listedByUser?: boolean; // live: the user's escrow listing on CardSwap
   listingPriceEth?: number; // live: the user's asking price
+  /** On-chain chart value the contract pays on redeem (aged cap x base / launch). */
+  chartEth?: number;
   name: string;
   image?: string;
   setName?: string;
@@ -50,12 +54,13 @@ export interface MarketCard {
   description?: string;
 }
 
-export interface SwapOffer {
-  offerId: number;
-  maker: string;
-  giveTokenId: number;
-  wantTokenId: number;
-  ethAskEth: number;
+interface DrawApi {
+  /** False once every milestone has airdropped. */
+  open: boolean;
+  entered: boolean;
+  entrantCount: number;
+  enter: () => Promise<void>;
+  leave: () => Promise<void>;
 }
 
 interface MarketApi {
@@ -67,10 +72,21 @@ interface MarketApi {
   userKey: string;
   live: {
     ready: boolean;
+    /**
+     * 'off' = demo build (no contracts configured). 'connecting' = contracts
+     * configured, first read in flight. 'ready' = on-chain data flowing.
+     * 'error' = contracts configured but reads failed or returned nothing;
+     * the UI must say so instead of quietly showing demo data.
+     */
+    status: 'off' | 'connecting' | 'ready' | 'error';
     capUsd?: number;
     nextMilestone?: { index: number; usd: number };
     totalMinted?: number;
+    /** False when a connected wallet sits on a chain other than the target. */
+    chainOk: boolean;
   };
+  /** Ask a connected wallet to switch to the target chain. */
+  switchChain: () => void;
   cards: MarketCard[];
   myCards: MarketCard[];
   eth: number;
@@ -79,23 +95,18 @@ interface MarketApi {
   costOf: (id: string) => number | undefined;
   /** Artwork lookup by TCGdex id (works for un-minted ladder slots too). */
   artFor: (tcgId: string | null | undefined) => CardArt | undefined;
-  offers: SwapOffer[];
-  incomingOffers: SwapOffer[];
-  outgoingOffers: SwapOffer[];
   activity: MarketEvent[];
   busy: string | null;
   txError: string | null;
   notice: string | null;
   setNotice: (notice: string | null) => void;
+  draw: DrawApi;
   actions: {
     buy: (id: string) => Promise<void>;
     sell: (id: string) => Promise<void>;
-    trade: (giveId: string, getId: string) => Promise<void>;
+    redeem: (id: string) => Promise<void>;
     listForSale: (id: string, priceEth: number) => Promise<void>;
     cancelListing: (id: string) => Promise<void>;
-    createSwapOffer: (giveId: string, getId: string, ethAskEth: number) => Promise<void>;
-    acceptSwap: (offerId: number) => Promise<void>;
-    cancelSwap: (offerId: number) => Promise<void>;
   };
 }
 
@@ -112,7 +123,9 @@ export function ownerLabel(ownerKey: string, userKey?: string): string {
   if (ownerKey === 'treasury') return 'Treasury';
   if (ownerKey === 'npc-1') return 'Trader 1';
   if (ownerKey === 'npc-2') return 'Trader 2';
+  if (ownerKey === 'npc-3') return 'Trader 3';
   if (ownerKey === 'guest') return 'Guest';
+  if (ownerKey === 'none') return 'Unminted';
   if (userKey && ownerKey.toLowerCase() === userKey.toLowerCase()) return 'You';
   if (ownerKey.startsWith('0x')) return `${ownerKey.slice(0, 6)}...${ownerKey.slice(-4)}`;
   return 'Unknown';
@@ -129,17 +142,19 @@ function isMine(ownerKey: string, address?: string): boolean {
 }
 
 export function MarketProvider({ children }: { children: ReactNode }) {
-  const { address } = useAccount();
+  const { address, chain: connectedChain } = useAccount();
   const queryClient = useQueryClient();
-  const demoCap = useDemoMarket();
-  const live = useMilestoneState();
+  const { switchChain } = useSwitchChain();
+  // the simulated ticker only runs when the demo market actually powers the UI
+  const demoCap = useDemoMarket(1200, !LIVE_MODE);
+  const live = useMilestoneState(address);
   const chain = useCardMarket();
   const portfolio = useDemoPortfolio(address);
+  const demoDraw = useDemoDraw(address);
   const { events, record } = useDemoEvents();
   const writes = useMarketWrites();
-  const offersQuery = useSwapOffers(LIVE_MODE);
   const chainActivity = useChainActivity(LIVE_MODE);
-  const balance = useBalance({ address });
+  const balance = useBalance({ address, chainId: targetChain.id });
 
   const [notice, setNotice] = useState<string | null>(null);
   const [art, setArt] = useState<Record<string, CardArt>>({});
@@ -173,14 +188,47 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   }, [tcgIds]);
 
   const userKey = address ?? 'guest';
-  const liveReady = LIVE_MODE && chain.ready && chain.cards.length > 0;
+  // Live readiness is strict: once contracts are configured, a failed or
+  // empty read is an error state, never a reason to show simulated prices.
+  const liveStatus: MarketApi['live']['status'] = !LIVE_MODE
+    ? 'off'
+    : chain.cards.length > 0
+      ? 'ready'
+      : chain.isLoading
+        ? 'connecting'
+        : 'error';
+  const liveReady = liveStatus === 'ready';
+  // reads only need the target chain; writes additionally require a
+  // connected wallet to already be on it (or to accept the switch prompt)
+  const chainOk =
+    !LIVE_MODE || !address || !connectedChain || connectedChain.id === targetChain.id;
+
+  // ---------- demo airdrop: settle the draw when the cap crosses ----------
+
+  useEffect(() => {
+    if (LIVE_MODE) return;
+    if (demoDraw.winner) return;
+    if (demoCap < DEMO_CARDS[DEMO_CARDS.length - 1].launchMc) return;
+    const winner = demoDraw.settle();
+    if (!winner) return;
+    portfolio.claimAirdrop('demo-4', winner);
+    record({ type: 'mint', accountKey: winner, cardId: 'demo-4' });
+    flash(
+      winner === userKey
+        ? 'You won the draw - card #04 airdropped to you'
+        : `Card #04 airdropped to ${ownerLabel(winner, userKey)}`,
+      setNotice,
+    );
+  }, [liveReady, demoCap, demoDraw, portfolio, record, userKey]);
 
   const demoCards = useMemo<MarketCard[]>(
     () =>
       DEMO_CARDS.map((demo, i) => {
         const price = priceEth(demo, demoCap);
         const artInfo = art[demo.tcgId];
-        const owner = portfolio.ownerOf(demo.id);
+        const holder = portfolio.ownerOf(demo.id);
+        const minted = i < DEMO_CARDS.length - 1 || holder !== 'treasury';
+        const owner = minted ? holder : 'none';
         return {
           id: demo.id,
           tokenId: i + 1,
@@ -189,8 +237,8 @@ export function MarketProvider({ children }: { children: ReactNode }) {
           priceEth: price,
           usd: price * ETH_USD,
           ownerKey: owner,
-          minted: true,
-          buyable: !isMine(owner, address),
+          minted,
+          buyable: minted && !isMine(owner, address),
           name: artInfo?.name ?? `Test Card #${i + 1}`,
           image: artInfo?.image,
           setName: artInfo?.setName,
@@ -203,47 +251,30 @@ export function MarketProvider({ children }: { children: ReactNode }) {
 
   const liveCards = useMemo<MarketCard[]>(() => {
     if (!liveReady) return [];
-    return chain.cards
-      .filter((c) => c.minted)
-      .map((chainCard) =>
-        buildLiveCard(chainCard, art, address, chain.marketCapWei, chain.basePriceWei, chain.treasury),
-      );
-  }, [liveReady, chain.cards, chain.marketCapWei, chain.basePriceWei, chain.treasury, art, address]);
+    return chain.cards.map((chainCard) => buildLiveCard(chainCard, art, address, chain.treasury));
+  }, [liveReady, chain.cards, chain.treasury, art, address]);
 
-  const cards = liveReady ? liveCards : demoCards;
+  // Demo data exists only in demo builds. In a live build a failed read shows
+  // an explicit error state; fabricated prices must never stand in for chain
+  // data at launch.
+  const cards = liveStatus === 'off' ? demoCards : liveCards;
 
-  const myCards = useMemo(() => cards.filter((c) => isMine(c.ownerKey, address)), [cards, address]);
+  // "treasury" is a display label for the MilestoneCards owner; when the
+  // connected wallet IS the treasury (testnet deployer), its cards are mine
+  const treasuryIsMe =
+    Boolean(address) &&
+    Boolean(chain.treasury) &&
+    chain.treasury?.toLowerCase() === address?.toLowerCase();
 
-  const offers = useMemo<SwapOffer[]>(
+  const myCards = useMemo(
     () =>
-      (offersQuery.data ?? [])
-        .filter((o) => o.active)
-        .map((o) => ({
-          offerId: o.offerId,
-          maker: o.maker,
-          giveTokenId: o.giveTokenId,
-          wantTokenId: o.wantTokenId,
-          ethAskEth: o.ethAskEth,
-        })),
-    [offersQuery.data],
-  );
-
-  const incomingOffers = useMemo(
-    () =>
-      offers.filter(
-        (o) =>
-          myCards.some((c) => c.tokenId === o.wantTokenId) &&
-          !isMine(o.maker, address),
+      cards.filter(
+        (c) => isMine(c.ownerKey, address) || (c.ownerKey === 'treasury' && treasuryIsMe),
       ),
-    [offers, myCards, address],
+    [cards, address, treasuryIsMe],
   );
 
-  const outgoingOffers = useMemo(
-    () => offers.filter((o) => isMine(o.maker, address)),
-    [offers, address],
-  );
-
-  const activity: MarketEvent[] = liveReady ? (chainActivity.data ?? []) : events;
+  const activity: MarketEvent[] = liveStatus === 'off' ? events : (chainActivity.data ?? []);
 
   const cardById = useCallback((id: string) => cards.find((c) => c.id === id), [cards]);
 
@@ -262,12 +293,62 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     [queryClient],
   );
 
+  // ---------- draw ----------
+
+  const liveDraw: DrawApi = useMemo(
+    () => ({
+      open: live.nextMilestone !== undefined && live.nextMilestone.index !== maxUint256,
+      entered: live.hasEntered ?? false,
+      entrantCount: live.entrantCount ?? 0,
+      enter: async () => {
+        try {
+          await writes.enterDraw();
+          done('You are in the draw - hold POKE to stay eligible');
+        } catch {
+          /* txError carries the failure */
+        }
+      },
+      leave: async () => {
+        try {
+          await writes.leaveDraw();
+          done('You left the airdrop draw');
+        } catch {
+          /* txError carries the failure */
+        }
+      },
+    }),
+    [live.nextMilestone, live.hasEntered, live.entrantCount, writes, done],
+  );
+
+  const demoDrawApi: DrawApi = useMemo(
+    () => ({
+      open: !demoDraw.winner,
+      entered: demoDraw.entered,
+      entrantCount: demoDraw.entrantCount,
+      enter: async () => {
+        demoDraw.enter();
+        done('You are in the draw - card #04 airdrops when the cap hits $50,000');
+      },
+      leave: async () => {
+        demoDraw.leave();
+        done('You left the airdrop draw');
+      },
+    }),
+    [demoDraw, done],
+  );
+
+  const draw: DrawApi = LIVE_MODE ? liveDraw : demoDrawApi;
+
   // ---------- demo actions ----------
 
   const demoBuy = useCallback(
     async (id: string) => {
       const card = cardById(id);
       if (!card) return;
+      if (!card.minted) {
+        flash('This card airdrops to the draw winner - enter the draw instead', setNotice);
+        return;
+      }
       if (portfolio.eth < card.priceEth) {
         flash('Not enough demo ETH', setNotice);
         return;
@@ -290,29 +371,6 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     [cardById, portfolio, record, userKey, done],
   );
 
-  const demoTrade = useCallback(
-    async (giveId: string, getId: string) => {
-      const give = cardById(giveId);
-      const get = cardById(getId);
-      if (!give || !get) return;
-      const delta = Math.round((get.priceEth - give.priceEth) * 1000) / 1000;
-      if (delta > 0 && portfolio.eth < delta) {
-        flash('Not enough demo ETH for the swap', setNotice);
-        return;
-      }
-      portfolio.trade(giveId, getId, delta, give.priceEth);
-      record({
-        type: 'trade',
-        accountKey: userKey,
-        giveCardId: giveId,
-        getCardId: getId,
-        priceEth: delta,
-      });
-      done(`Traded ${give.name} for ${get.name}`);
-    },
-    [cardById, portfolio, record, userKey, done],
-  );
-
   // ---------- live actions ----------
 
   const liveBuy = useCallback(
@@ -321,11 +379,9 @@ export function MarketProvider({ children }: { children: ReactNode }) {
       if (!card) return;
       try {
         if (card.priceWei) {
-          await writes.buyFromSale(BigInt(card.tokenId), card.priceWei);
-        } else if (card.listingPriceEth) {
-          await writes.buyListing(BigInt(card.tokenId), parseEther(card.listingPriceEth.toFixed(18)));
+          await writes.buyListing(BigInt(card.tokenId), card.priceWei);
         } else {
-          flash(`${card.name} is not listed for sale`, setNotice);
+          flash(`${card.name} is not listed - check back once the holder names a price`, setNotice);
           return;
         }
         done(`Bought ${card.name}`);
@@ -341,6 +397,11 @@ export function MarketProvider({ children }: { children: ReactNode }) {
       const card = cardById(id);
       if (!card || !(priceEth > 0)) return;
       try {
+        if (card.listedByUser) {
+          // the card sits in CardSwap escrow: pull it back before re-listing
+          // at the new price (list() would revert as a non-owner)
+          await writes.cancelListing(BigInt(card.tokenId));
+        }
         await writes.listForSale(BigInt(card.tokenId), parseEther(priceEth.toFixed(18)));
         done(`Listed ${card.name} for ${priceEth.toFixed(3)} ETH`);
       } catch {
@@ -364,18 +425,13 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     [cardById, writes, done],
   );
 
-  const liveOffer = useCallback(
-    async (giveId: string, getId: string, ethAskEth: number) => {
-      const give = cardById(giveId);
-      const get = cardById(getId);
-      if (!give || !get) return;
+  const liveRedeem = useCallback(
+    async (id: string) => {
+      const card = cardById(id);
+      if (!card) return;
       try {
-        await writes.createSwapOffer(
-          BigInt(give.tokenId),
-          BigInt(get.tokenId),
-          parseEther(String(ethAskEth)),
-        );
-        done(`Offered ${give.name} for ${get.name}`);
+        await writes.redeemCard(BigInt(card.tokenId));
+        done(`Redeemed ${card.name} for its chart value`);
       } catch {
         /* txError carries the failure */
       }
@@ -383,51 +439,36 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     [cardById, writes, done],
   );
 
-  const liveAccept = useCallback(
-    async (offerId: number) => {
-      const offer = offers.find((o) => o.offerId === offerId);
-      if (!offer) return;
-      const want = cardById(`card-${offer.wantTokenId}`);
-      if (!want) return;
-      try {
-        await writes.acceptSwapOffer(
-          offerId,
-          BigInt(offer.wantTokenId),
-          parseEther(String(offer.ethAskEth)),
-        );
-        done(`Swap accepted: received card #${offer.giveTokenId}`);
-      } catch {
-        /* txError carries the failure */
-      }
-    },
-    [offers, cardById, writes, done],
-  );
-
-  const liveCancelSwap = useCallback(
-    async (offerId: number) => {
-      try {
-        await writes.cancelSwapOffer(offerId);
-        done('Swap offer cancelled');
-      } catch {
-        /* txError carries the failure */
-      }
-    },
-    [writes, done],
-  );
-
   const notLive = useCallback(
     async () => flash('Live trading activates with the contract deploy', setNotice),
     [],
   );
 
+  // Live caps read 0 until the pool is seeded; show the real number (or 0),
+  // never the demo ticker, once contracts are configured
+  const liveCapUsd =
+    live.marketCap !== undefined ? Number(live.marketCap) / 1e18 : liveStatus === 'off' ? demoCap : 0;
+  const displayCap = liveStatus === 'off' ? demoCap : liveCapUsd;
+
+  /** Listing reference: the on-chain chart value (what redeem pays), falling
+   * back to the same formula computed from the live cap and the contract's
+   * base price while the first cap checkpoint is still aging. */
+  const sellReferenceEth = useCallback(
+    (card: MarketCard) =>
+      card.chartEth ??
+      ((live.redeemBaseEth ?? 0.01) * Math.max(displayCap, 1)) / card.launchUsd,
+    [live.redeemBaseEth, displayCap],
+  );
+
   const value: MarketApi = {
-    mode: liveReady ? 'live' : 'demo',
-    marketCap: liveReady && live.marketCap ? Number(live.marketCap) / 1e18 : demoCap,
+    mode: liveStatus === 'off' ? 'demo' : 'live',
+    marketCap: displayCap,
     demoCap,
     userKey,
     live: {
       ready: liveReady,
-      capUsd: live.marketCap !== undefined ? Number(live.marketCap) / 1e18 : undefined,
+      status: liveStatus,
+      capUsd: live.marketCap !== undefined ? liveCapUsd : undefined,
       nextMilestone:
         live.nextMilestone !== undefined
           ? {
@@ -436,40 +477,38 @@ export function MarketProvider({ children }: { children: ReactNode }) {
             }
           : undefined,
       totalMinted: live.totalMinted !== undefined ? Number(live.totalMinted) : undefined,
+      chainOk,
     },
+    switchChain: () => switchChain({ chainId: targetChain.id }),
     cards,
     myCards,
     eth,
     isGuest: !address,
-    realizedEth: liveReady ? undefined : portfolio.realized,
-    costOf: (id) => (liveReady ? undefined : portfolio.costOf(id)),
+    realizedEth: liveStatus === 'off' ? portfolio.realized : undefined,
+    costOf: (id) => (liveStatus === 'off' ? portfolio.costOf(id) : undefined),
     artFor: (tcgId) => (tcgId ? art[tcgId] : undefined),
-    offers,
-    incomingOffers,
-    outgoingOffers,
     activity,
     busy: writes.busy,
     txError: writes.txError,
     notice,
     setNotice,
+    draw,
     actions: {
-      buy: liveReady ? liveBuy : demoBuy,
-      // in live mode "sell" lists the card on CardSwap at its dynamic price
-      sell: liveReady
+      buy: LIVE_MODE ? liveBuy : demoBuy,
+      // in live mode "sell" lists the card on CardSwap at the on-chain chart
+      // value (agedCap x base / launchCap); sellers can re-list at any price
+      sell: LIVE_MODE
         ? async (id) => {
             const card = cardById(id);
-            if (card) await liveList(id, card.priceEth);
+            if (!card) return;
+            await liveList(id, sellReferenceEth(card));
           }
         : demoSell,
-      // in live mode "trade" opens a card-for-card swap offer
-      trade: liveReady
-        ? async (giveId, getId) => liveOffer(giveId, getId, 0)
-        : demoTrade,
-      listForSale: liveReady ? liveList : notLive,
-      cancelListing: liveReady ? liveCancel : async () => undefined,
-      createSwapOffer: liveReady ? liveOffer : notLive,
-      acceptSwap: liveReady ? liveAccept : async () => undefined,
-      cancelSwap: liveReady ? liveCancelSwap : async () => undefined,
+      // redeem sells the card back to the protocol at its chart value
+      // (demo: the simulated market pays the same formula price)
+      redeem: LIVE_MODE ? liveRedeem : demoSell,
+      listForSale: LIVE_MODE ? liveList : notLive,
+      cancelListing: LIVE_MODE ? liveCancel : async () => undefined,
     },
   };
 
@@ -477,42 +516,37 @@ export function MarketProvider({ children }: { children: ReactNode }) {
 }
 
 /**
- * Live-mode card view built from chain reads plus TCGdex art. Price shown is
- * the treasury sale price when listed, the holder's escrow price on CardSwap
- * otherwise, and the sale formula estimate as a last resort.
+ * Live-mode card view built from chain reads plus TCGdex art. Milestone
+ * cards airdrop to drawn holders, so a price exists only when a holder has
+ * escrow-listed the card on CardSwap; everything else is unlisted until a
+ * holder names a price.
  */
 function buildLiveCard(
   chainCard: ChainCard,
   art: Record<string, CardArt>,
   address: string | undefined,
-  marketCapWei: bigint | undefined,
-  basePriceWei: bigint | undefined,
   treasury: string | undefined,
 ): MarketCard {
   const artInfo = art[LADDER_TCG_IDS[chainCard.tokenId - 1] ?? ''];
-  // the treasury is the MilestoneCards owner; label it cleanly
-  const ownerKey =
-    treasury && chainCard.owner?.toLowerCase() === treasury.toLowerCase()
-      ? 'treasury'
-      : chainCard.owner ?? 'unknown';
+  // an un-minted slot has no owner; escrowed listings belong to the swap
+  // contract but the seller is the real party; the treasury is the fallback
+  const ownerKey = !chainCard.minted
+    ? 'none'
+    : chainCard.swapListing
+      ? chainCard.swapListing.seller
+      : treasury && chainCard.owner?.toLowerCase() === treasury.toLowerCase()
+        ? 'treasury'
+        : chainCard.owner ?? 'unknown';
+
   const listedByMe =
     chainCard.swapListing !== undefined &&
     Boolean(address) &&
     chainCard.swapListing.seller.toLowerCase() === address?.toLowerCase();
 
-  const priceOf = (value: bigint | undefined): number => (value === undefined ? 0 : Number(formatEther(value)));
-  let priceEth = 0;
-  let priceWei: bigint | undefined;
-  if (chainCard.saleListed && chainCard.salePriceWei !== undefined) {
-    priceWei = chainCard.salePriceWei;
-    priceEth = priceOf(priceWei);
-  } else if (chainCard.swapListing) {
-    priceWei = chainCard.swapListing.priceWei;
-    priceEth = priceOf(priceWei);
-  } else if (marketCapWei !== undefined && basePriceWei !== undefined) {
-    const threshold = chainCard.thresholdWei > 0n ? chainCard.thresholdWei : 1n;
-    priceEth = priceOf((basePriceWei * marketCapWei) / threshold);
-  }
+  const priceEth = chainCard.swapListing
+    ? Number(formatEther(chainCard.swapListing.priceWei))
+    : 0;
+  const priceWei = chainCard.swapListing?.priceWei;
 
   return {
     id: `card-${chainCard.tokenId}`,
@@ -523,9 +557,10 @@ function buildLiveCard(
     priceWei,
     ownerKey,
     minted: chainCard.minted,
-    buyable: chainCard.saleListed || chainCard.swapListing !== undefined,
+    buyable: chainCard.minted && chainCard.swapListing !== undefined,
     listedByUser: listedByMe,
-    listingPriceEth: chainCard.swapListing ? priceOf(chainCard.swapListing.priceWei) : undefined,
+    listingPriceEth: chainCard.swapListing ? Number(formatEther(chainCard.swapListing.priceWei)) : undefined,
+    chartEth: chainCard.chartPriceWei !== undefined ? Number(formatEther(chainCard.chartPriceWei)) : undefined,
     name: artInfo?.name ?? `Milestone Card #${String(chainCard.tokenId).padStart(2, '0')}`,
     image: artInfo?.image,
     setName: artInfo?.setName,

@@ -7,24 +7,24 @@ const SUPPLY = 1_000_000_000;
 
 const STEPS = [
   {
-    step: '1',
-    title: 'Get ETH on the Robinhood Chain',
-    body: 'Bridge or buy ETH and switch your wallet to the Robinhood Chain network. The connect button in the header can switch you automatically.',
+    step: '01',
+    title: 'Get POKE',
+    body: 'Bridge or buy ETH on the Robinhood Chain, then swap for POKE in the launch pool. Every swap moves the cap.',
   },
   {
-    step: '2',
-    title: 'Swap ETH for POKE',
-    body: 'Trade ETH for POKE on the launch pool. Every swap moves the market cap, and the market cap gates the milestone mints.',
+    step: '02',
+    title: 'Enter the draw',
+    body: 'Holding POKE is the only ticket. Enter once from the market page; the draw re-checks your balance at every crossing.',
   },
   {
-    step: '3',
+    step: '03',
     title: 'Hold the chart',
-    body: 'When market cap crosses a milestone and holds there, the next Pokemon card mints to the treasury - exactly once.',
+    body: 'When market cap crosses a milestone and holds for the confirm window, the next card airdrops to a drawn holder.',
   },
   {
-    step: '4',
-    title: 'Buy the cards',
-    body: 'Milestone cards go on sale priced off the same chart. Sell them or swap them as the collection climbs.',
+    step: '04',
+    title: 'Win, then sell',
+    body: 'The winner gets the card free. Keep it, or list it for ETH on the peer-to-peer market at whatever price the market pays.',
   },
 ];
 
@@ -44,7 +44,7 @@ function AddressRow({ label, address }: { label: string; address?: string }) {
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 py-3">
+    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 py-3.5 last:border-b-0">
       <span className="font-mono text-[11px] text-white/45">{label}</span>
       {address ? (
         <span className="flex items-center gap-3">
@@ -65,7 +65,7 @@ function AddressRow({ label, address }: { label: string; address?: string }) {
           </button>
         </span>
       ) : (
-        <span className="font-mono text-xs text-white/30">set at deploy</span>
+        <span className="font-mono text-xs text-white/45">set at deploy</span>
       )}
     </div>
   );
@@ -100,31 +100,30 @@ export default function TokenPage() {
     <section className="pb-16">
       <div className="mb-8">
         <p className="eyebrow">The ticker</p>
-        <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">
+        <h1 className="mt-2 font-display text-3xl font-semibold uppercase tracking-tight sm:text-4xl">
           Get POKE
         </h1>
-        <p className="mt-3 max-w-xl text-sm font-light leading-relaxed text-white/55">
-          One billion POKE, one collection. Holding POKE is a
-          stake in the chart that mints every milestone card - and every card
-          price is derived from the same market cap.
+        <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/60">
+          One billion POKE, fixed supply. The cap drives the milestone
+          airdrops, and holding POKE is the only ticket in the draw.
         </p>
       </div>
 
-      <div className="terminal mb-8 p-7">
+      <div className="panel mb-10 p-7">
         <div className="flex flex-wrap items-center gap-x-10 gap-y-4">
           <div>
             <p className="eyebrow">token</p>
-            <p className="mt-1.5 font-display text-xl font-semibold">PokeCard Token</p>
+            <p className="mt-1.5 font-display text-xl font-medium uppercase">PokeCard Token</p>
           </div>
-          <div>
+          <div className="sm:border-l sm:border-white/10 sm:pl-10">
             <p className="font-mono text-[11px] text-white/40">symbol</p>
             <p className="mt-1.5 font-mono text-sm">POKE</p>
           </div>
-          <div>
+          <div className="sm:border-l sm:border-white/10 sm:pl-10">
             <p className="font-mono text-[11px] text-white/40">supply</p>
             <p className="mt-1.5 font-mono text-sm">{SUPPLY.toLocaleString('en-US')}</p>
           </div>
-          <div>
+          <div className="sm:border-l sm:border-white/10 sm:pl-10">
             <p className="font-mono text-[11px] text-white/40">network</p>
             <p className="mt-1.5 font-mono text-sm">{targetChain.name}</p>
           </div>
@@ -136,14 +135,14 @@ export default function TokenPage() {
               href={dexUrl}
               target="_blank"
               rel="noreferrer"
-              className="btn btn-primary !px-5 !py-2.5 text-[13px]"
+              className="btn btn-primary"
             >
               Buy POKE on the DEX
             </a>
           ) : (
             <button
               type="button"
-              className="btn btn-primary !px-5 !py-2.5 text-[13px] disabled:cursor-not-allowed disabled:opacity-40"
+              className="btn btn-primary"
               disabled
               title="The launch pool link goes live with the token"
             >
@@ -153,7 +152,7 @@ export default function TokenPage() {
           {CONTRACTS.token && walletClient && (
             <button
               type="button"
-              className="btn btn-ghost !px-5 !py-2.5 text-[13px]"
+              className="btn btn-ghost"
               onClick={() => void addToWallet()}
             >
               {added ? 'Added' : 'Add POKE to wallet'}
@@ -162,35 +161,35 @@ export default function TokenPage() {
         </div>
       </div>
 
-      <h2 className="font-display text-2xl font-semibold tracking-tight">
-        How to buy, step by step
+      <h2 className="font-display text-2xl font-medium uppercase tracking-tight">
+        How to win a card, step by step
       </h2>
-      <div className="mt-6 grid gap-8 md:grid-cols-2">
+      <div className="mt-6 grid gap-x-8 gap-y-8 md:grid-cols-2">
         {STEPS.map((item) => (
-          <div key={item.step}>
-            <p className="font-mono text-xs text-white/30">{item.step}</p>
+          <div key={item.step} className="border-t border-white/15 pt-4">
+            <p className="font-mono text-xs text-white/45">{item.step}</p>
             <h3 className="mt-2.5 text-[15px] font-semibold tracking-tight">
               {item.title}
             </h3>
-            <p className="mt-2 text-sm font-light leading-relaxed text-white/50">
+            <p className="mt-2 text-sm leading-relaxed text-white/55">
               {item.body}
             </p>
           </div>
         ))}
       </div>
 
-      <h2 className="mt-12 font-display text-2xl font-semibold tracking-tight">
+      <h2 className="mt-12 font-display text-2xl font-medium uppercase tracking-tight">
         Contracts
       </h2>
-      <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-2">
+      <div className="panel mt-4 px-5 py-1.5">
         <AddressRow label="POKE token (ERC-20)" address={CONTRACTS.token} />
-        <AddressRow label="Milestone cards (ERC-721)" address={CONTRACTS.cards} />
-        <AddressRow label="Treasury sale (CardSale)" address={CONTRACTS.sale} />
+        <AddressRow label="Milestone cards + airdrop draw (ERC-721)" address={CONTRACTS.cards} />
+        <AddressRow label="Treasury fallback sale (CardSale)" address={CONTRACTS.sale} />
         <AddressRow label="Peer-to-peer swaps (CardSwap)" address={CONTRACTS.swap} />
       </div>
-      <p className="mt-4 font-mono text-[11px] text-white/35">
-        Addresses are set the moment the contracts deploy to the Robinhood
-        Chain - this page updates itself from the deployment.
+      <p className="mt-4 font-mono text-[11px] text-white/45">
+        Addresses appear here the moment the contracts deploy to the Robinhood
+        Chain - this page reads them from the deployment.
       </p>
     </section>
   );

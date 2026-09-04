@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import Nav from './components/Nav';
+import Footer from './components/Footer';
+import { ConfirmTxProvider } from './components/ConfirmTx';
 import Home from './pages/Home';
 import Portfolio from './pages/Portfolio';
 import Activity from './pages/Activity';
@@ -31,6 +33,7 @@ function Shell() {
           <Route path="/token" element={<TokenPage />} />
           <Route path="*" element={<Home showTour={showTour} onTourDone={() => setShowTour(false)} />} />
         </Routes>
+        <Footer />
       </div>
     </div>
   );
@@ -39,7 +42,9 @@ function Shell() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Shell />
+      <ConfirmTxProvider>
+        <Shell />
+      </ConfirmTxProvider>
     </BrowserRouter>
   );
 }

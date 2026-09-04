@@ -8,7 +8,7 @@ function shorten(address: string): string {
 }
 
 const menuClass =
-  'absolute right-0 top-12 z-50 w-60 overflow-hidden rounded-xl border border-white/10 bg-[#0b0b0c] py-1.5 shadow-2xl shadow-black/60';
+  'absolute right-0 top-12 z-50 w-60 overflow-hidden rounded-[4px] border border-white/12 bg-[#0d0d0f] py-1.5 shadow-2xl shadow-black/60';
 const menuItemClass =
   'w-full px-4 py-2.5 text-left font-mono text-xs text-white/75 transition hover:bg-white/5 hover:text-white';
 
@@ -55,7 +55,7 @@ export default function WalletButton() {
     return (
       <button
         type="button"
-        className="btn btn-primary !px-5 !py-2.5 text-[13px]"
+        className="btn btn-primary"
         onClick={() => openConnect()}
       >
         Connect Wallet
@@ -67,7 +67,7 @@ export default function WalletButton() {
     <div ref={ref} className="relative">
       <button
         type="button"
-        className="btn btn-ghost !gap-2 !px-4 !py-2.5 font-mono !text-[12px]"
+        className="btn btn-ghost !gap-2 !normal-case"
         onClick={() => setMenuOpen((value) => !value)}
       >
         <span

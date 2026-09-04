@@ -127,8 +127,16 @@ export default function CardCoverflow({ items }: { items: CardListItem[] }) {
       <div
         ref={containerRef}
         className={`orbit${dragging ? ' dragging' : ''}`}
-        role="listbox"
-        aria-label="Card gallery, drag then release to snap"
+        role="group"
+        aria-label="Card gallery, drag or use arrow keys"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          // arrow keys nudge the belt one card with the same snap as a drag
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+          event.preventDefault();
+          const step = event.key === 'ArrowRight' ? 1 : -1;
+          st.anim = { from: st.pos, to: Math.round(st.pos) + step, start: performance.now() };
+        }}
         onPointerDown={(event) => {
           st.anim = null;
           st.dragging = true;

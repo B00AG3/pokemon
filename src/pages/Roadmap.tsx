@@ -18,12 +18,9 @@ export default function Roadmap() {
   return (
     <section className="pb-16">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow">The ladder</p>
-          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-            Milestone roadmap
-          </h1>
-        </div>
+        <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+          Milestone roadmap
+        </h1>
         {market.mode === 'demo' && (
           <span className="chip chip-neutral">Demo progress</span>
         )}
@@ -32,7 +29,9 @@ export default function Roadmap() {
       <div className="panel p-7">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="eyebrow">current market cap</p>
+            <p className="font-mono text-[10px] tracking-[0.08em] text-white/40">
+              current market cap
+            </p>
             <p className="mt-2 font-display text-3xl font-semibold tracking-tight">
               {formatUsd(Math.round(cap))}
             </p>

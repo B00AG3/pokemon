@@ -99,8 +99,7 @@ export default function TokenPage() {
   return (
     <section className="pb-16">
       <div className="mb-8">
-        <p className="eyebrow">The ticker</p>
-        <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
           Get POKE
         </h1>
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/60">
@@ -112,7 +111,7 @@ export default function TokenPage() {
       <div className="panel mb-10 p-7">
         <div className="flex flex-wrap items-center gap-x-10 gap-y-4">
           <div>
-            <p className="eyebrow">token</p>
+            <p className="font-mono text-[11px] text-white/40">token</p>
             <p className="mt-1.5 font-display text-xl font-medium">PokeCard Token</p>
           </div>
           <div className="sm:border-l sm:border-white/10 sm:pl-10">

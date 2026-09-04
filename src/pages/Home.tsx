@@ -36,8 +36,6 @@ export default function Home({
 }) {
   const market = useMarket();
 
-  const cardOneName = market.artFor(LADDER_TCG_IDS[0])?.name ?? 'Charizard';
-
   // The hero belt is the milestone ladder itself, from a single source: once
   // a card enters the belt it keeps its slot, so nothing can swap identities
   // after mount (a second data source replacing shown cards read as a bug).
@@ -61,12 +59,9 @@ export default function Home({
       <header className="relative grid items-center gap-10 pb-12 pt-10 lg:grid-cols-[1.02fr_0.98fr] lg:pt-14">
         <div className="hero-aurora" aria-hidden />
         <div className="relative max-w-xl">
-          <p className="eyebrow rise" style={{ animationDelay: '40ms' }}>
-            Real Pokemon TCG cards, airdropped free to holders
-          </p>
           <h1
-            className="rise mt-4 font-display text-5xl font-semibold leading-[1.06] tracking-tight sm:text-6xl xl:text-[4.4rem]"
-            style={{ animationDelay: '140ms' }}
+            className="rise font-display text-5xl font-semibold leading-[1.06] tracking-tight sm:text-6xl xl:text-[4.4rem]"
+            style={{ animationDelay: '40ms' }}
           >
             Every milestone airdrops a real Pokemon card.
           </h1>
@@ -123,10 +118,7 @@ export default function Home({
         <Reveal>
           <div className="panel mt-10 grid gap-8 p-7 sm:p-9 lg:grid-cols-[1.2fr_1fr]">
             <div>
-              <p className="eyebrow">
-                card #01 / {cardOneName.toLowerCase()} / base set
-              </p>
-              <p className="mt-4 max-w-xl font-display text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
+              <p className="max-w-xl font-display text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
                 Card #01 went to a holder for free. The next one could be you.
               </p>
               <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/55">

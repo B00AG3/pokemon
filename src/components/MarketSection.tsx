@@ -100,12 +100,9 @@ export default function MarketSection() {
   return (
     <section id="demo" className="scroll-mt-10 border-t border-white/10 pb-16 pt-10">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow">The market</p>
-          <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-            The draw, then holder to holder
-          </h2>
-        </div>
+        <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+          The draw, then holder to holder
+        </h2>
         {ticker}
       </div>
 

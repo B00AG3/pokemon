@@ -402,10 +402,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
             </div>
 
             <div className="max-w-xl px-4 pt-8 sm:px-6 lg:px-10 lg:pt-10">
-              <p className="font-mono text-[10px] tracking-[0.08em] text-white/40">
-                Robinhood Chain / launching soon
-              </p>
-              <h1 className="mt-3 font-display text-2xl font-semibold leading-tight tracking-tight text-[#f2f2f0] sm:text-4xl">
+              <h1 className="font-display text-2xl font-semibold leading-tight tracking-tight text-[#f2f2f0] sm:text-4xl">
                 Every milestone airdrops a real Pokemon card.
               </h1>
               <p className="mt-4 text-[13px] leading-relaxed text-white/60">

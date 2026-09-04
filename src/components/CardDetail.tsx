@@ -145,10 +145,7 @@ export default function CardDetail({
 
           {/* right: details */}
           <div>
-            <p className="eyebrow">
-              Milestone card - #{String(card.cardNumber).padStart(2, '0')}
-            </p>
-            <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+            <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
               {card.name}
             </h1>
             <p className="mt-2 font-mono text-lg text-white">

@@ -28,8 +28,8 @@ semantic only.
 
 ## Primitives
 
-- `.eyebrow`: mono 11px, 0.08em tracking, white/50. Sentence case; all-caps
-  kickers and headers are banned site-wide.
+- No kicker lines or eyebrow headers: sections open with the display heading
+  directly. All-caps text and kicker tags are banned site-wide.
 - `.btn`: square (3px), mono 11px sentence case. Primary white-on-black
   text; ghost hairline. Hover: border brightens, primary lifts 1px with a
   soft shadow; ghost stays color-only.
@@ -45,10 +45,10 @@ semantic only.
 
 ## Surfaces
 
-- Hero: mono kicker line, Oswald H1, short body, two buttons. Accent pools
+- Hero: Oswald H1, short body, two buttons. Accent pools
   (`hero-aurora`) sit behind the fold. Right: draggable card coverflow
   (kept from incumbent, it is the signature).
-- Sections open with eyebrow + Oswald H2; content separated by hairlines.
+- Sections open with an Oswald H2; content separated by hairlines.
 - Market grid: hairline cards, card art is the only large color.
 - Roadmap: ledger rows, hairline dividers, status chips.
 - Footer: hairline top, brand, links, disclaimer fine print. Anchored to the

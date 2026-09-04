@@ -56,12 +56,9 @@ export default function Portfolio() {
   return (
     <section className="pb-16">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow">Your collection</p>
-          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-            Portfolio
-          </h1>
-        </div>
+        <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+          Portfolio
+        </h1>
         {!live && <span className="chip chip-neutral">Demo portfolio</span>}
       </div>
 

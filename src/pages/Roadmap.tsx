@@ -1,4 +1,4 @@
-import { getCardImageUrl } from '../services/tcgdex';
+import { getCardImageUrl } from '../services/pokemontcg';
 import { useMarket } from '../state/MarketProvider';
 import { MILESTONES, formatUsd } from '../constants/ladder';
 

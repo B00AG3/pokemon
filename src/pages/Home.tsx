@@ -5,7 +5,7 @@ import MarketSection from '../components/MarketSection';
 import Reveal from '../components/Reveal';
 import { useMarket } from '../state/MarketProvider';
 import { LADDER_TCG_IDS } from '../constants/ladder';
-import type { CardListItem } from '../types/tcgdex';
+import type { CardListItem } from '../types/pokemontcg';
 
 const IntroTour = lazy(() => import('../components/IntroTour'));
 

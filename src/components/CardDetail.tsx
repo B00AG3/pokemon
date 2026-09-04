@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ETH_USD, formatEth } from '../demo/market';
+import { getCardImageUrl } from '../services/pokemontcg';
 
 export interface DetailCard {
   id: string;
@@ -82,7 +83,7 @@ export default function CardDetail({
     return () => window.removeEventListener('keydown', onKey);
   }, [onBack]);
 
-  const imageUrl = card.image ? `${card.image}/high.png` : undefined;
+  const imageUrl = getCardImageUrl(card);
   const usdValue = card.price * ETH_USD;
   const chartLabel = chartValueEth !== undefined ? formatEth(chartValueEth) : undefined;
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
-import { getCardImageUrl } from '../services/tcgdex';
+import { getCardImageUrl } from '../services/pokemontcg';
 import CardDetail from './CardDetail';
 import { useTxConfirm } from './ConfirmTx';
 import Reveal from './Reveal';

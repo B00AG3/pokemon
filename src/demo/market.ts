@@ -1,4 +1,4 @@
-import type { CardListItem } from '../types/tcgdex';
+import type { CardListItem } from '../types/pokemontcg';
 
 /**
  * Demo market data for the trading preview. Everything here is simulated:

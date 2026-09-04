@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getCardById, getCardImageUrl } from '../services/tcgdex';
+import { getCardById, getCardImageUrl } from '../services/pokemontcg';
 
 /**
  * First-visit intro: a screencast-style modal containing a 1:1 recreation of

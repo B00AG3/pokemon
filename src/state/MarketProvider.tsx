@@ -10,7 +10,7 @@ import {
 import { useAccount, useBalance, useSwitchChain } from 'wagmi';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatEther, maxUint256, parseEther } from 'viem';
-import { getCardById } from '../services/tcgdex';
+import { getCardById } from '../services/pokemontcg';
 import { DEMO_CARDS, ETH_USD, priceEth } from '../demo/market';
 import { useDemoMarket } from '../demo/useDemoMarket';
 import { useDemoPortfolio } from '../demo/useDemoPortfolio';

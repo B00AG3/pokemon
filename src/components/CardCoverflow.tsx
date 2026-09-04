@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CardListItem } from '../types/tcgdex';
-import { getCardImageUrl } from '../services/tcgdex';
+import type { CardListItem } from '../types/pokemontcg';
+import { getCardImageUrl } from '../services/pokemontcg';
 
 const SPACING = 170;
 const SNAP_MS = 400;

@@ -29,8 +29,8 @@ export default function Footer() {
       </div>
       <p className="mt-5 max-w-3xl font-mono text-[10px] leading-relaxed text-white/45">
         Not affiliated with Nintendo, Creatures Inc., GAME FREAK, The Pokemon
-        Company, or Robinhood Markets. Card artwork via the TCGdex API.
-        Nothing here is financial advice.
+        Company, or Robinhood Markets. Card data and artwork via the Pokemon
+        TCG Developer API (pokemontcg.io). Nothing here is financial advice.
       </p>
     </footer>
   );

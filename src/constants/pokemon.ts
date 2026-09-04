@@ -1,4 +1,4 @@
-import type { EnergyType } from '../types/tcgdex';
+import type { EnergyType } from '../types/pokemontcg';
 
 /** Curated from GET /types so the dropdown renders instantly without a round trip. */
 export const POKEMON_TYPES: readonly EnergyType[] = [

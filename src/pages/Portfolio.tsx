@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
-import { getCardImageUrl } from '../services/tcgdex';
+import { getCardImageUrl } from '../services/pokemontcg';
 import CardDetail from '../components/CardDetail';
 import { useTxConfirm } from '../components/ConfirmTx';
 import { useMarket, ownerLabel } from '../state/MarketProvider';

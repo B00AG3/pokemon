@@ -13,6 +13,17 @@ throwaway stack bound to the Pons token with tiny thresholds and delays. The
 real ladder launch (sections 1-5) happens later with real values; do not
 reuse the smoke stack for it.
 
+One-command version (steps 2-5 and 7 automated, keeper included):
+
+    TOKEN_ADDRESS=<pons token> npm run smoke:mainnet
+
+It discovers the pool, deploys the SmokeSwapper helper, creates and funds
+throwaway trader wallets, buys POKE into them, deploys the smoke stack, sets
+the manual ETH/USD price, funds the redemption pool, enters the draw, and
+starts the keeper in the same console. It prints the VITE_* env block at the
+end. Knobs and defaults are documented in scripts/smoke-mainnet.ts. Put the
+funded deployer key in contracts/.env (gitignored) and use a burner wallet.
+
 1. Launch POKE on Pons from the deployer wallet (0.0005 ETH fee). Set the
    Pons **fee wallet** to your ops/treasury wallet: creator fees (70% of
    trading fees, paid in WETH + POKE) accrue there and are claimable from

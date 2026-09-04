@@ -121,14 +121,16 @@ async function main() {
   }
 
   if (pinataJwt) {
-    // pin the JSONs as one IPFS directory so baseTokenURI is stable
+    // pin the JSONs as one IPFS directory so baseTokenURI is stable. Files
+    // must sit at the directory root: tokenURI resolves <base>/1.json, so a
+    // pokecard-metadata/ path prefix here would 404.
     const form = new FormData();
     for (let i = 0; i < cards.length; i++) {
       const file = path.join(outDir, `${i + 1}.json`);
       form.append(
         'file',
         new Blob([new Uint8Array(fs.readFileSync(file))], { type: 'application/json' }),
-        `pokecard-metadata/${i + 1}.json`,
+        `${i + 1}.json`,
       );
     }
     const res = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {

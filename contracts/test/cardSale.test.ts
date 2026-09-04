@@ -1,8 +1,9 @@
-import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
+import { loadFixture, time } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 
 const ONE = 10n ** 18n;
+const SIX_HOURS = 6n * 3600n; // matches the deployment redeem delay
 
 describe('CardSale', () => {
   async function deployFixture() {
@@ -10,15 +11,19 @@ describe('CardSale', () => {
     const oracle = await (
       await ethers.getContractFactory('MockMilestonePriceOracle')
     ).deploy();
+    const token = await (await ethers.getContractFactory('PokeCardToken')).deploy(owner.address);
     const thresholds = [5000n * ONE, 10_000n * ONE];
     const cards = await (
       await ethers.getContractFactory('MilestoneCards')
     ).deploy(
       await oracle.getAddress(),
       keeper.address,
+      await token.getAddress(),
+      10n ** 16n,
       'ipfs://pokecard-lab/',
       thresholds,
       0,
+      SIX_HOURS,
     );
     // 0.1 ETH base price at the card's own launch milestone
     const sale = await (
@@ -28,9 +33,12 @@ describe('CardSale', () => {
     // treasury (cards owner) lets the sale contract move its cards
     await cards.setApprovalForAll(await sale.getAddress(), true);
 
-    // mint card 01 at a $5,000 market cap and list it
+    // mint card 01 at a $5,000 market cap, then age a checkpoint at that cap
+    // so sale pricing (which reads the aged cap) is live
     await oracle.setMarketCap(5000n * ONE);
     await cards.connect(keeper).mintNext();
+    await cards.connect(keeper).checkpointCap();
+    await time.increase(SIX_HOURS + 1n);
     await sale.list([1n]);
 
     return { owner, keeper, buyer, oracle, cards, sale };
@@ -42,9 +50,17 @@ describe('CardSale', () => {
   });
 
   it('scales 200x when market cap runs from $5k to $1M', async () => {
-    const { oracle, sale } = await loadFixture(deployFixture);
+    const { oracle, cards, keeper, sale } = await loadFixture(deployFixture);
     await oracle.setMarketCap(1_000_000n * ONE);
+    await cards.connect(keeper).checkpointCap();
+    await time.increase(SIX_HOURS + 1n);
     expect(await sale.priceOf(1n)).to.equal(10n ** 17n * 200n);
+  });
+
+  it('quotes the aged cap, not a live dump', async () => {
+    const { oracle, sale } = await loadFixture(deployFixture);
+    await oracle.setMarketCap(1n * ONE); // un-checkpointed crash: price must hold
+    expect(await sale.priceOf(1n)).to.equal(10n ** 17n);
   });
 
   it('sells the card, pays the treasury, and refunds overpayment', async () => {

@@ -6,16 +6,13 @@ dotenv.config();
 /**
  * PokeCard milestone keeper for Robinhood Chain.
  * Polls the price oracle; confirms threshold crossings and mints the next
- * milestone card once the confirmation window has elapsed. Newly minted
- * cards are listed on the treasury CardSale automatically when
- * SALE_ADDRESS is configured (minting makes nothing buyable on its own).
+ * milestone card once the confirmation window has elapsed. Milestone cards
+ * airdrop straight to a drawn POKE holder inside mintNext() - the keeper
+ * never handles the card and there is nothing to list.
  *
  * Env:
  *   KEEPER_PRIVATE_KEY   EOA allowed to call mintNext/confirmCrossing
  *   CARDS_ADDRESS        deployed MilestoneCards address
- *   SALE_ADDRESS         deployed CardSale address (enables auto-listing;
- *                        the keeper must be the sale owner, i.e. the
- *                        deployer, or listing fails gracefully)
  *   KEEPER_RPC_URL       JSON-RPC endpoint (defaults to Robinhood testnet)
  *   INTERVAL_MS          poll interval (default 30000)
  *
@@ -24,7 +21,6 @@ dotenv.config();
 
 const RPC = process.env.KEEPER_RPC_URL ?? 'https://rpc.testnet.chain.robinhood.com';
 const CARDS_ADDRESS = process.env.CARDS_ADDRESS;
-const SALE_ADDRESS = process.env.SALE_ADDRESS;
 const INTERVAL_MS = Number(process.env.INTERVAL_MS ?? 30_000);
 
 const cardsAbi = [
@@ -34,11 +30,11 @@ const cardsAbi = [
   'function crossingAt(uint256) view returns (uint256)',
   'function confirmCrossing()',
   'function mintNext()',
+  'function checkpointCap()',
+  'function lastCheckpointAt() view returns (uint256)',
   'function totalMinted() view returns (uint256)',
-];
-const saleAbi = [
-  'function isListed(uint256 tokenId) view returns (bool)',
-  'function list(uint256[] tokenIds)',
+  'function entrantCount() view returns (uint256)',
+  'event MilestoneMinted(uint256 indexed index, uint256 indexed tokenId, uint256 marketCap, address indexed to)',
 ];
 const oracleAbi = ['function marketCap() view returns (uint256)'];
 
@@ -63,37 +59,64 @@ async function poll() {
     const mc: bigint = await oracle.marketCap();
 
     const fmt = (v: bigint) => Number(ethers.formatUnits(v, 18)).toLocaleString('en-US');
-    console.log(`[keeper] market cap $${fmt(mc)} | next milestone #${index} at $${fmt(threshold)}`);
+    let drawInfo = '';
+    try {
+      const entrants: bigint = await cards.entrantCount();
+      drawInfo = ` | ${entrants} in the draw`;
+    } catch {
+      /* older deployment without the draw */
+    }
+    console.log(`[keeper] market cap $${fmt(mc)} | next milestone #${index} at $${fmt(threshold)}${drawInfo}`);
 
     if (mc < threshold) return;
 
-    const window: bigint = await cards.confirmWindow();
     const now = BigInt(Math.floor(Date.now() / 1000));
+
+    // Feed redemption pricing: checkpoint at most once per contract gap.
+    // The contract no-ops on early calls; skip the tx when nothing is due.
+    try {
+      const lastCheckpoint: bigint = await cards.lastCheckpointAt();
+      if (now - lastCheckpoint >= 840n) {
+        // 14 min: just under the on-chain 15 min gap
+        const cp = await cards.checkpointCap();
+        await cp.wait();
+        console.log(`[keeper] cap checkpoint recorded - tx ${cp.hash}`);
+      }
+    } catch {
+      /* older deployment without checkpoint pricing */
+    }
+
+    const window: bigint = await cards.confirmWindow();
     let crossed: bigint = 0n;
     if (window > 0n) {
       crossed = await cards.crossingAt(index);
-      if (crossed === 0n || now - crossed < window) {
+      if (crossed === 0n) {
+        // first sighting of the crossing: stamp it once. The contract keeps
+        // the first stamp, so the window cannot be pushed out by re-polling.
         const tx = await cards.confirmCrossing();
         await tx.wait();
         console.log(`[keeper] crossing confirmed at block ${tx.blockNumber}; waiting for window`);
         return;
       }
+      if (now - crossed < window) return; // window still running; wait silently
     }
 
     const tx = await cards.mintNext();
     const receipt = await tx.wait();
     const tokenId = BigInt(index) + 1n;
-    console.log(`[keeper] MINTED card #${tokenId} for milestone #${index} - tx ${receipt?.hash}`);
-
-    // a minted card is not buyable until it is listed on the treasury sale
-    if (SALE_ADDRESS) {
-      const sale = new ethers.Contract(SALE_ADDRESS, saleAbi, wallet);
-      if (!(await sale.isListed(tokenId))) {
-        const listTx = await sale.list([tokenId]);
-        await listTx.wait();
-        console.log(`[keeper] LISTED card #${tokenId} on CardSale - tx ${listTx.hash}`);
-      }
-    }
+    const minted = receipt?.logs
+      .map((log) => {
+        try {
+          return cards.interface.parseLog(log);
+        } catch {
+          return null;
+        }
+      })
+      .find((parsed) => parsed?.name === 'MilestoneMinted');
+    const winner = (minted?.args?.to as string) ?? 'unknown';
+    console.log(
+      `[keeper] AIRDROPPED card #${tokenId} to ${winner} for milestone #${index} - tx ${receipt?.hash}`,
+    );
   } catch (error) {
     console.error('[keeper] poll failed:', (error as Error).message ?? error);
   } finally {

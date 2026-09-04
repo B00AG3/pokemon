@@ -13,7 +13,7 @@ import {MilestoneCards} from './MilestoneCards.sol';
  * @notice Sells milestone cards held by the treasury with pricing that
  * tracks the token, the signature PokeCard mechanic:
  *
- *   price(card) = basePriceWei x currentMarketCap / milestoneCapOfThatCard
+ *   price(card) = basePriceWei x agedMarketCap / milestoneCapOfThatCard
  *
  * A card that launched at a $5,000 market cap is quoted at 200x its base
  * price once the token reaches $1,000,000 - exactly the "first card is the
@@ -41,19 +41,24 @@ contract CardSale is Ownable, Pausable, ReentrancyGuard {
     error NotListed();
     error InsufficientPayment();
     error EthTransferFailed();
+    error ChartNotReady();
 
     constructor(address cards_, address oracle_, uint256 basePriceWei_) Ownable(msg.sender) Pausable() ReentrancyGuard() {
-        cards = MilestoneCards(cards_);
+        cards = MilestoneCards(payable(cards_));
         oracle = IMilestonePriceOracle(oracle_);
         basePriceWei = basePriceWei_;
     }
 
     /// @notice Current ETH price (wei) of a milestone card. Scales linearly
-    /// with market cap relative to the card's own launch milestone.
+    /// with market cap relative to the card's own launch milestone. Uses the
+    /// cards contract's aged checkpoint cap, so a dumped pool price cannot
+    /// buy a treasury card below its honest chart value. Reverts
+    /// ChartNotReady until a checkpoint has aged.
     function priceOf(uint256 tokenId) public view returns (uint256) {
         (uint256 threshold, bool minted) = cards.milestoneAt(tokenId - 1);
         if (!minted) revert CardNotMinted();
-        uint256 mc = oracle.marketCap();
+        uint256 mc = cards.agedMarketCap();
+        if (mc == 0) revert ChartNotReady();
         return Math.mulDiv(basePriceWei, mc, threshold);
     }
 
@@ -81,7 +86,7 @@ contract CardSale is Ownable, Pausable, ReentrancyGuard {
             if (!refunded) revert EthTransferFailed();
         }
 
-        emit CardSold(tokenId, msg.sender, price, oracle.marketCap());
+        emit CardSold(tokenId, msg.sender, price, cards.agedMarketCap());
     }
 
     function list(uint256[] calldata tokenIds) external onlyOwner {

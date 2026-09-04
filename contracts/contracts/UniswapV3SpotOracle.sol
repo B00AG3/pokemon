@@ -6,40 +6,31 @@ import {AggregatorV3Interface} from './AggregatorV3Interface.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IMilestonePriceOracle} from './IMilestonePriceOracle.sol';
-import {IStateView} from './IStateView.sol';
+import {IV3Pool} from './IV3Pool.sol';
 
 /**
- * @title UniswapV4SpotOracle
+ * @title UniswapV3SpotOracle
  * @notice Reports the PokeCard token market cap in USD (18 decimals) from the
- * token's Uniswap v4 pool spot price and an ETH/USD price feed.
+ * token's Uniswap v3 pool spot price and an ETH/USD price feed. This is the
+ * oracle for tokens launched on Pons, which list straight into a v3 pool
+ * quoted against WETH and never migrate.
  *
  * marketCap = POKE-in-WETH price x WETH-in-USD price x totalSupply
  *
- * Milestone gating smooths spot through MilestoneCards' `confirmWindow`
- * (the cap must hold above a threshold across keeper polls), and redemptions
- * price off MilestoneCards' aged checkpoint history, so this contract can
- * stay a pure spot read. Upgrade path: replace the spot read with a TWAP
- * from the same StateView without changing the interface.
+ * Milestone gating smooths spot through MilestoneCards' `confirmWindow`, and
+ * redemptions price off MilestoneCards' aged checkpoint history, so this
+ * contract can stay a pure spot read. Upgrade path: swap the spot read for a
+ * v3 TWAP (the pool's oracle observations) without changing the interface.
  *
- * Config requirements before mainnet:
- *  - stateView: the v4 StateView deployment active on the target chain
- *  - poolKey:   the exact PoolKey the pool was initialized with
+ * Config requirements:
+ *  - pool: the token's v3 pool (Pons: the `liquidityPool()` getter)
  *  - ethUsdFeed: a Chainlink aggregator on the chain. If none exists yet,
  *    leave it zero and the owner sets a manual ETH/USD price instead.
  */
-contract UniswapV4SpotOracle is IMilestonePriceOracle, Ownable {
-    struct PoolKey {
-        address currency0;
-        address currency1;
-        uint24 fee;
-        int24 tickSpacing;
-        address hooks;
-    }
-
-    IStateView public immutable stateView;
+contract UniswapV3SpotOracle is IMilestonePriceOracle, Ownable {
+    IV3Pool public immutable pool;
     IERC20Metadata public immutable pokeToken;
-    bytes32 public immutable poolId;
-    bool public immutable pokeIsCurrency0;
+    bool public immutable pokeIsToken0;
     AggregatorV3Interface public ethUsdFeed;
     uint256 public maxStaleness;
     uint256 public manualEthUsdPrice; // USD, 8 decimals - used when feed is unset
@@ -52,23 +43,21 @@ contract UniswapV4SpotOracle is IMilestonePriceOracle, Ownable {
     event MaxStalenessUpdated(uint256 seconds_);
 
     constructor(
-        IStateView stateView_,
+        IV3Pool pool_,
         IERC20Metadata pokeToken_,
         address weth,
-        PoolKey memory poolKey,
         AggregatorV3Interface ethUsdFeed_,
         uint256 maxStaleness_
     ) Ownable(msg.sender) {
-        if (
-            !((address(pokeToken_) == poolKey.currency0 && weth == poolKey.currency1) ||
-                (address(pokeToken_) == poolKey.currency1 && weth == poolKey.currency0))
-        ) revert InvalidPool();
-        if (address(stateView_) == address(0)) revert InvalidPool();
-
-        stateView = stateView_;
+        address token0 = pool_.token0();
+        address token1 = pool_.token1();
+        bool pokeIs0 = token0 == address(pokeToken_);
+        if (!((pokeIs0 && token1 == weth) || (!pokeIs0 && token0 == weth && token1 == address(pokeToken_)))) {
+            revert InvalidPool();
+        }
+        pool = pool_;
         pokeToken = pokeToken_;
-        poolId = keccak256(abi.encode(poolKey.currency0, poolKey.currency1, poolKey.fee, poolKey.tickSpacing, poolKey.hooks));
-        pokeIsCurrency0 = address(pokeToken_) == poolKey.currency0;
+        pokeIsToken0 = pokeIs0;
         ethUsdFeed = ethUsdFeed_;
         maxStaleness = maxStaleness_;
     }
@@ -80,11 +69,11 @@ contract UniswapV4SpotOracle is IMilestonePriceOracle, Ownable {
     /// dividing the per-wei price out early would floor every read to zero.
     function marketCap() public view returns (uint256) {
         uint256 ethUsd8 = _ethUsd8();
-        (uint160 sqrtPriceX96, , , ) = IStateView(stateView).getSlot0(poolId);
+        (uint160 sqrtPriceX96, , , , , , ) = pool.slot0();
         if (sqrtPriceX96 == 0) revert InvalidPool();
 
         uint256 supply = IERC20Metadata(pokeToken).totalSupply();
-        if (pokeIsCurrency0) {
+        if (pokeIsToken0) {
             // WETH wei per POKE wei = sqrtP^2 / 2^192. Keep sqrtP^2 scaled by
             // 2^96 and divide by 2^96 once at the very end:
             //   cap = sqrtP^2 x ethUsd8 x supply / (2^192 x 1e8)

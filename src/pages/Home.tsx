@@ -1,9 +1,8 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import CardCoverflow from '../components/CardCoverflow';
 import MarketSection from '../components/MarketSection';
 import Reveal from '../components/Reveal';
-import { getCardWall } from '../services/tcgdex';
 import { useMarket } from '../state/MarketProvider';
 import { LADDER_TCG_IDS } from '../constants/ladder';
 import type { CardListItem } from '../types/tcgdex';
@@ -36,28 +35,20 @@ export default function Home({
   onTourDone: () => void;
 }) {
   const market = useMarket();
-  const [wallItems, setWallItems] = useState<CardListItem[]>([]);
-
-  // decorative hero wall: one cheap pool request, failures are silent
-  useEffect(() => {
-    getCardWall(48)
-      .then(setWallItems)
-      .catch(() => {});
-  }, []);
 
   const cardOneName = market.artFor(LADDER_TCG_IDS[0])?.name ?? 'Charizard';
 
-  // if the decorative wall fetch fails, the ladder art carries the hero
-  // instead of endless pulsing placeholders
+  // The hero belt is the milestone ladder itself, from a single source: once
+  // a card enters the belt it keeps its slot, so nothing can swap identities
+  // after mount (a second data source replacing shown cards read as a bug).
   const heroItems: CardListItem[] = useMemo(() => {
-    if (wallItems.length > 0) return wallItems;
     return LADDER_TCG_IDS.map((id, i) => {
       const art = market.artFor(id);
       return art?.image
-        ? { id: `ladder-${i}`, localId: String(i + 1), name: art.name, image: art.image }
+        ? { id, localId: String(i + 1), name: art.name, image: art.image }
         : null;
     }).flatMap((item) => (item ? [item] : []));
-  }, [wallItems, market]);
+  }, [market]);
 
   return (
     <>

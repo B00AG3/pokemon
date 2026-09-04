@@ -237,22 +237,6 @@ export async function getRandomCards(
   });
 }
 
-/**
- * One-shot pool of display-ready list items for the hero card wall: a random
- * page of the full index, filtered to cards that have artwork. Single
- * request, no detail hydration.
- */
-export async function getCardWall(count = 48): Promise<CardListItem[]> {
-  const target = Math.min(64, Math.max(8, Math.floor(count)));
-  let pool = withArtwork(
-    await fetchPool({}, 1 + Math.floor(Math.random() * RANDOM_POOL_MAX_PAGE)),
-  );
-  if (pool.length === 0) {
-    pool = withArtwork(await fetchPool({}, 1));
-  }
-  return pickRenderable(shuffle(pool), target);
-}
-
 /** GET /types - reference list of energy types. */
 export async function getEnergyTypes(): Promise<string[]> {
   return tcgdexFetch<string[]>('/types');

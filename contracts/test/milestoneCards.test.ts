@@ -173,6 +173,25 @@ describe('MilestoneCards', () => {
       expect(marketCap).to.equal(10_000n * ONE);
     });
 
+    it('never airdrops to a holder that never entered, even a whale LP', async () => {
+      const { oracle, token, cards, keeper, alice } = await loadFixture(deployFixture);
+      // the liquidity pool stand-in: holds the lion's share of POKE. It can
+      // never win because only the wallet itself can call enterDraw, and the
+      // draw picks exclusively from the entrant list.
+      const [, , , , pool] = await ethers.getSigners();
+      await token.transfer(pool.address, 900_000_000n * ONE);
+      await token.transfer(alice.address, 100n * ONE);
+      await cards.connect(alice).enterDraw();
+      expect(await cards.entrantCount()).to.equal(1n); // the pool is not in the draw
+
+      await oracle.setMarketCap(5000n * ONE);
+      await expect(cards.connect(keeper).mintNext())
+        .to.emit(cards, 'MilestoneMinted')
+        .withArgs(0, 1n, 5000n * ONE, alice.address);
+      expect(await cards.ownerOf(1n)).to.equal(alice.address);
+      expect(await cards.balanceOf(pool.address)).to.equal(0);
+    });
+
     it('skips entrants who sold their POKE and falls back to the treasury when none remain', async () => {
       const { oracle, token, cards, keeper, owner, alice, bob } = await loadFixture(deployFixture);
       await token.transfer(alice.address, 100n * ONE);

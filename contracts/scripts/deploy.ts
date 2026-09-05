@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ethers, network } from 'hardhat';
 
-const THRESHOLDS_DEFAULT = '5000,10000,25000,50000,100000,250000,500000,1000000';
+const THRESHOLDS_DEFAULT = '10000,25000,50000,100000,250000,500000,1000000';
 
 /**
  * Deploys MilestoneCards (+ MockMilestonePriceOracle when MOCK_ORACLE=1,

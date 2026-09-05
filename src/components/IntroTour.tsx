@@ -100,9 +100,9 @@ const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 const usd = (value: number) => `$${Math.round(value).toLocaleString('en-US')}`;
 
 const DEMO_CARDS = [
-  { tcgId: 'base1-4', launch: 5000 },
-  { tcgId: 'base1-2', launch: 10000 },
-  { tcgId: 'base1-1', launch: 25000 },
+  { tcgId: 'base1-4', launch: 10000 },
+  { tcgId: 'base1-2', launch: 25000 },
+  { tcgId: 'base1-1', launch: 50000 },
 ];
 
 /** Card #01 anchors the story: its launch cap drives every derived value. */

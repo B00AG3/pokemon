@@ -12,12 +12,12 @@ export interface DemoCard {
 }
 
 export const DEMO_CARDS: DemoCard[] = [
-  { id: 'demo-1', tcgId: 'base1-4', launchMc: 5000 },
-  { id: 'demo-2', tcgId: 'base1-2', launchMc: 10000 },
-  { id: 'demo-3', tcgId: 'base1-1', launchMc: 25000 },
-  // the next ladder slot: un-minted until the demo cap crosses $50k, then
+  { id: 'demo-1', tcgId: 'base1-4', launchMc: 10000 },
+  { id: 'demo-2', tcgId: 'base1-2', launchMc: 25000 },
+  { id: 'demo-3', tcgId: 'base1-1', launchMc: 50000 },
+  // the next ladder slot: un-minted until the demo cap crosses $100k, then
   // airdropped to a drawn holder (see useDemoDraw)
-  { id: 'demo-4', tcgId: 'base1-6', launchMc: 50000 },
+  { id: 'demo-4', tcgId: 'base1-6', launchMc: 100000 },
 ];
 
 export const BASE_PRICE_ETH = 0.05;

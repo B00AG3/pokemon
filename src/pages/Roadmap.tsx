@@ -108,7 +108,7 @@ export default function Roadmap() {
         Every card airdrops free to a drawn holder - the only ticket is
         holding POKE when the cap crosses. From there cards sell holder to
         holder, with the chart as the reference: at a {formatUsd(1000000)}{' '}
-        cap, a card from the {formatUsd(5000)} milestone references 200x its
+        cap, a card from the {formatUsd(10000)} milestone references 100x its
         base price.
       </p>
     </section>

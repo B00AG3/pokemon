@@ -4,7 +4,7 @@
 
 A token-backed collectibles airdrop. One ERC-20 ticker (POKE, fixed supply of
 1,000,000,000) launches on the Robinhood Chain (an Arbitrum Orbit L2). Eight
-market-cap milestones ($5,000 through $1,000,000) each airdrop one real
+market-cap milestones ($10,000 through $1,000,000) each airdrop one real
 Pokemon TCG card, exactly once, free, to a drawn holder. Holding POKE is the
 only draw ticket: wallets enter once via `MilestoneCards.enterDraw()`, the
 winner must still hold POKE when the cap crosses (the contract re-checks and

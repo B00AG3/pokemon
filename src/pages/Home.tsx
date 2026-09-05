@@ -95,7 +95,7 @@ export default function Home({
             How it works
           </h2>
           <p className="font-mono text-xs text-white/40">
-            8 milestones - $5,000 to $1,000,000
+            7 milestones - $10,000 to $1,000,000
           </p>
         </div>
 

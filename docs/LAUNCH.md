@@ -24,10 +24,13 @@ starts the keeper in the same console. It prints the VITE_* env block at the
 end. Knobs and defaults are documented in scripts/smoke-mainnet.ts. Put the
 funded deployer key in contracts/.env (gitignored) and use a burner wallet.
 
-1. Launch POKE on Pons from the deployer wallet (0.0005 ETH fee). Set the
-   Pons **fee wallet** to your ops/treasury wallet: creator fees (70% of
-   trading fees, paid in WETH + POKE) accrue there and are claimable from
-   the Pons interface at any time.
+1. Launch POKE on Pons (0.0005 ETH fee) - scripted now:
+   `NAME=PokeCard SYMBOL=POKE npm run launch:pons`, then `EXECUTE=1` to fire.
+   The fee wallet defaults to the keeper address: the keeper claims the
+   creator fees (70% of trading fees, paid in ETH + POKE) on its sweep
+   cadence and tops the redemption pool to 150% of outstanding card
+   liability, forwarding the overflow to TEAM_ADDRESS (keeper env). Flip
+   SWEEP_MODE=live after the first claims are observed during the smoke run.
 2. Note the token address; the pool comes from its `liquidityPool()` getter
    (Uniswap v3, 1% tier, quoted against WETH). Buy small POKE amounts into
    2-3 wallets after the first two launch-protection blocks.

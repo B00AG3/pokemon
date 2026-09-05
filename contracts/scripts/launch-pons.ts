@@ -62,7 +62,10 @@ async function main() {
   const pairToken = num('PAIR_TOKEN', ethers.ZeroAddress);
   const cfg = await factory.getLaunchConfig(configId);
   const expectedEconomics: string = await factory.previewLaunchEconomics(configId, pairToken);
-  const feeRecipient = num('FEE_RECIPIENT', dev.address);
+  // the fee wallet is the keeper: it sweeps Pons creator fees into the
+  // redemption pool automatically (see keeper.ts SWEEP_*), so fees land
+  // where they get used instead of in a wallet nobody watches
+  const feeRecipient = num('FEE_RECIPIENT', process.env.KEEPER_ADDRESS ?? dev.address);
   const salt = ethers.hexlify(ethers.randomBytes(32));
 
   const params = {
@@ -90,7 +93,7 @@ async function main() {
   console.log(`  token:           ${params.name} ($${params.symbol})`);
   console.log(`  logo:            ${params.logo}`);
   console.log(`  creator tax:     ${params.creatorTaxBps} bps | buyback: ${params.buybackEnabled}`);
-  console.log(`  fee recipient:   ${feeRecipient} (70% of trading fees accrue here)`);
+  console.log(`  fee recipient:   ${feeRecipient} (keeper wallet; sweeps creator fees into the card pool)`);
   console.log(`  config:          #${configId}, supply ${Number(cfg.supply) / 1e18 / 1e9}B tokens, graduation ${Number(cfg.graduationThreshold) / 1e18} ETH`);
   console.log(`  reserve:         ${pairToken === ethers.ZeroAddress ? 'native ETH' : pairToken}`);
   console.log(`  launch fee:      ${Number(fee) / 1e18} ETH + gas`);

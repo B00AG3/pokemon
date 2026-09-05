@@ -10,6 +10,7 @@
     "seed:testnet": "hardhat run scripts/seed-testnet.ts --network robinhoodTestnet",
     "fund:pool": "hardhat run scripts/fund-pool.ts --network robinhoodMainnet",
     "keeper": "ts-node scripts/keeper.ts",
+    "launch:pons": "ts-node scripts/launch-pons.ts",
     "metadata": "ts-node scripts/generate-metadata.ts"
   },
   "dependencies": {

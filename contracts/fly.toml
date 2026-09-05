@@ -1,0 +1,8 @@
+# Keeper process: no HTTP service, one always-on machine that polls the
+# milestone oracle and mints cards. Restart policy is set via CLI at deploy.
+app = "pokecard-keeper"
+primary_region = "ams"
+
+[vm]
+size = "shared-cpu-1x"
+memory = "256mb"

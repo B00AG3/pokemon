@@ -1,0 +1,10 @@
+# The build context goes to Fly's remote builder; keep the wallet key and
+# local build junk out of it.
+.env
+node_modules
+artifacts
+cache
+typechain-types
+deployments
+metadata-out
+openapi.json

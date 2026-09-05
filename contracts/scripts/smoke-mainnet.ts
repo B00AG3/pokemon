@@ -23,7 +23,7 @@ import { ethers, network } from 'hardhat';
  * Smoke values (SMOKE_* below) are hardcoded to throwaway sizes and ignore
  * whatever THRESHOLDS/CONFIRM_WINDOW/... contracts/.env carries: this tool
  * must never deploy the real ladder by accident.
- *   SMOKE_THRESHOLDS          default 50,100,250
+ *   SMOKE_THRESHOLDS          default 5000,6000,7000 (the coin spawns near $5k, so the first rungs must sit just above spawn)
  *   SMOKE_CONFIRM_WINDOW      default 60s
  *   SMOKE_REDEEM_DELAY        default 60s
  *   SMOKE_REDEEM_BASE_PRICE_WEI  default 0.001 ETH
@@ -55,7 +55,7 @@ async function main() {
   const buyEthPerWallet = num('SMOKE_BUY_ETH_PER_WALLET', '0.0005');
   const traderGasEth = num('SMOKE_TRADER_GAS_ETH', '0.0004');
   const fundEth = num('SMOKE_FUND_ETH', '0.01');
-  const thresholds = num('SMOKE_THRESHOLDS', '50,100,250');
+  const thresholds = num('SMOKE_THRESHOLDS', '5000,6000,7000');
   const confirmWindow = num('SMOKE_CONFIRM_WINDOW', '60');
   const redeemDelay = num('SMOKE_REDEEM_DELAY', '60');
   const redeemBasePriceWei = num('SMOKE_REDEEM_BASE_PRICE_WEI', (10n ** 15n).toString());

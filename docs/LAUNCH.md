@@ -48,8 +48,11 @@ funded deployer key in contracts/.env (gitignored) and use a burner wallet.
    `FUND_ETH=0.01 npm run fund:pool` (worst case at a $250 cap is
    0.001 x (5 + 2.5 + 1) = 0.0085 ETH). The script also prints the exact
    outstanding liability.
-5. Enter the draw from wallet 2 (it holds POKE), then start the keeper:
-   `KEEPER_PRIVATE_KEY=... CARDS_ADDRESS=<from deployments/robinhoodMainnet.json> KEEPER_RPC_URL=https://rpc.mainnet.chain.robinhood.com npm run keeper`.
+5. Enter the draw from wallet 2 (it holds POKE), then start the keeper from
+   a shell that sourced the keeper env file (never inline the key: it would
+   land in shell history and process listings):
+   `set -a; . ./.env; set +a` then
+   `CARDS_ADDRESS=<from deployments/robinhoodMainnet.json> KEEPER_RPC_URL=https://rpc.mainnet.chain.robinhood.com npm run keeper`.
    It checkpoints the cap, confirms the first crossing at the $50 threshold,
    waits the 60s window, and airdrops card #1 to the drawn holder.
 6. Point the site at the smoke stack (VITE_* addresses, `VITE_ROBINHOOD_TESTNET` unset).
@@ -121,8 +124,12 @@ after:
 
 ```bash
 # keeper machine (separate key, separate host)
-KEEPER_PRIVATE_KEY=... CARDS_ADDRESS=... \
-KEEPER_RPC_URL=<paid RPC> npm run keeper
+# keep KEEPER_PRIVATE_KEY / CARDS_ADDRESS / KEEPER_RPC_URL in a chmod 600
+# ./.env (or `fly secrets set` on the Fly deployment) and source it - never
+# inline the key on the command line, where shell history and process
+# listings would capture it
+set -a; . ./.env; set +a
+npm run keeper
 ```
 
 The keeper polls the oracle, stamps the first crossing (`confirmCrossing`),

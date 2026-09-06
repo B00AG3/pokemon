@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 .env
+# every env variant, but keep the tracked examples and the public-address
+# production file; a stray .env.staging / .env.backup must never be committable
+.env.*
+!*.env.example
+!.env.production
+coverage/
+contracts/coverage
 
 # Editor directories and files
 .vscode/*

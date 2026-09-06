@@ -17,17 +17,25 @@ One-command version (steps 2-5 and 7 automated, keeper included):
 
     TOKEN_ADDRESS=<pons token> npm run smoke:mainnet
 
-It discovers the pool, deploys the SmokeSwapper helper, creates and funds
-throwaway trader wallets, buys POKE into them, deploys the smoke stack, sets
-the manual ETH/USD price, funds the redemption pool, enters the draw, and
-starts the keeper in the same console. It prints the VITE_* env block at the
-end. Knobs and defaults are documented in scripts/smoke-mainnet.ts. Put the
-funded deployer key in contracts/.env (gitignored) and use a burner wallet.
+It resolves the token's Pons curve, creates and funds throwaway trader
+wallets, buys POKE off the curve, deploys the smoke stack, sets the manual
+ETH/USD price, funds the redemption pool, enters the draw, and starts the
+keeper in the same console. It prints the VITE_* env block at the end. Knobs
+and defaults are documented in scripts/smoke-mainnet.ts. Put the funded
+deployer key in contracts/.env (gitignored) and use a burner wallet.
 
-1. Launch POKE on Pons (0.0005 ETH fee) - scripted now:
-   `NAME=PokeCard SYMBOL=POKE npm run launch:pons`, then `EXECUTE=1` to fire.
-   The fee wallet defaults to the keeper address: the keeper claims the
-   creator fees (70% of trading fees, paid in ETH + POKE) on its sweep
+1. Launch POKE on Pons - two ways:
+   - WEBSITE (simplest): connect the dev wallet and fill the form - name,
+     ticker, logo, socials all go there. Pick the standard curve (config #0:
+     1B supply, 4.2 ETH graduation), zero creator tax, no buyback, native
+     ETH. If the form has a creator-fee-recipient field, set it to the keeper
+     wallet; if it does not, run `npx ts-node scripts/point-fees-at-keeper.ts`
+     right after (with EXECUTE=1, from the wallet that launched) so creator
+     fees land where the keeper sweeps them into the card pool.
+   - SCRIPTED: `NAME=PokeCard SYMBOL=POKE npm run launch:pons`, then
+     `EXECUTE=1` to fire. The fee wallet already defaults to the keeper.
+   The keeper then claims the creator fees (70% of trading fees, paid in
+   ETH + POKE) on its sweep
    cadence and tops the redemption pool to 150% of outstanding card
    liability, forwarding the overflow to TEAM_ADDRESS (keeper env). Flip
    SWEEP_MODE=live after the first claims are observed during the smoke run.

@@ -24,6 +24,8 @@ dotenv.config();
  *   SWEEP_KEEP_WEI       gas buffer left in the keeper wallet (default 0.002 ETH)
  *   PONS_FEE_ESCROW      Pons v2 fee escrow (default: mainnet address)
  *   POKE_TOKEN           the Pons-launched token; sweep stays off until set
+ *   CURVE_ADDRESS        the token's Pons curve; live sweeps claim pre-grad
+ *                        creator fees into the escrow first
  *   SWEEP_QUOTE_TOKENS   comma list probed as the ETH side of fees
  *   TEAM_ADDRESS         overflow destination; held in the keeper if unset
  *
@@ -51,6 +53,10 @@ const SWEEP_MIN_WEI = BigInt(process.env.SWEEP_MIN_WEI ?? 10n ** 14n); // skip d
 const SWEEP_KEEP_WEI = BigInt(process.env.SWEEP_KEEP_WEI ?? 2n * 10n ** 15n); // gas buffer
 const PONS_FEE_ESCROW = process.env.PONS_FEE_ESCROW ?? '0xd3AFEB2a57f70eF218Aa82451c51B2fb0416Ac9e';
 const POKE_TOKEN = process.env.POKE_TOKEN; // set once the Pons token exists
+// Pons bonding curve for POKE: pre-graduation, creator fees accrue on the
+// curve until the creator (the fee recipient = this keeper wallet) sweeps
+// them into the fee escrow. Set once the token exists.
+const CURVE_ADDRESS = process.env.CURVE_ADDRESS;
 // the ETH side of fees may be tracked as native or as WETH; probe both
 const SWEEP_QUOTE_TOKENS = (
   process.env.SWEEP_QUOTE_TOKENS ?? `${ethers.ZeroAddress},0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73`
@@ -103,6 +109,30 @@ async function sweep(wallet: ethers.Wallet, cards: ethers.Contract): Promise<voi
   lastSweepAt = Date.now();
 
   const escrow = new ethers.Contract(PONS_FEE_ESCROW, escrowAbi, wallet);
+
+  // Pre-graduation, creator fees accrue on the curve itself: the creator-side
+  // sweep (our launch is zero-tax and no-buyback, which qualifies) moves them
+  // into the fee escrow where the balances below can see them. Sweep before
+  // reading, in live mode only; every failure is a logged skip, never a
+  // poll breaker. After graduation the hook gates sweeps operator-side and
+  // this call reverts into the catch.
+  if (SWEEP_MODE === 'live' && CURVE_ADDRESS) {
+    try {
+      const curve = new ethers.Contract(
+        CURVE_ADDRESS,
+        ['function sweepFees(uint256 minBuybackTokensOut)'],
+        wallet,
+      );
+      const tx = await curve.sweepFees(0);
+      await tx.wait();
+      console.log(`[keeper][sweep] curve fees swept into the escrow - tx ${tx.hash}`);
+    } catch (error) {
+      console.log(
+        `[keeper][sweep] curve sweep skipped: ${(error as Error).message?.split('\n')[0]?.slice(0, 100) ?? error}`,
+      );
+    }
+  }
+
   // native accrues on its own ledger; quote tokens (WETH) and POKE on theirs
   const pending: Array<{ token: string; amount: bigint }> = [];
   try {

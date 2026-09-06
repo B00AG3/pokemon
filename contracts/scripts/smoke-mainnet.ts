@@ -1,22 +1,26 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import type { Signer } from 'ethers';
 import { ethers, network } from 'hardhat';
 
 /**
  * One-command mainnet smoke test (LAUNCH.md "Quick path"). Give it a Pons
  * token address and a funded deployer (PRIVATE_KEY in contracts/.env) and it
- * runs the whole loop: discovers the POKE/WETH pool, deploys a tiny swapper
- * helper, creates and funds throwaway trader wallets, buys POKE into them,
- * deploys the smoke stack (tiny thresholds, 60s windows), prices the oracle,
- * funds the redemption pool, enters the draw, and hands off to the keeper.
+ * runs the whole loop: resolves the token's Pons bonding curve, creates and
+ * funds throwaway trader wallets, buys POKE straight off the curve with them,
+ * deploys the smoke stack (tiny thresholds, 60s windows, the curve oracle),
+ * prices the oracle, funds the redemption pool, enters the draw, and hands
+ * off to the keeper.
+ *
+ * Pre-graduation only: the token still trades on its curve. After the 4.2 ETH
+ * graduation the token lives in a locked v4 pool - use the V4 oracle path.
  *
  * Env (all optional unless noted):
  *   TOKEN_ADDRESS          REQUIRED - Pons-launched POKE ERC-20
- *   V3_POOL_ADDRESS        pool override (default: token.liquidityPool())
- *   V3_WETH_ADDRESS        WETH the pool is quoted against
- *                          (default: Robinhood mainnet WETH)
- *   SWAPPER_ADDRESS        reuse a previously deployed SmokeSwapper
+ *   CURVE_ADDRESS          curve override (default: resolve from the Pons
+ *                          factory's getLaunchedToken(token) record)
+ *   PONS_FACTORY           factory override (default: mainnet Pons v2 factory)
  *   START_KEEPER           1 (default) = run the keeper when setup finishes
  *   DRY_RUN                1 = print the plan, touch nothing
  *
@@ -39,13 +43,61 @@ import { ethers, network } from 'hardhat';
  * Run: npm run smoke:mainnet
  */
 
-const WETH_DEFAULT = '0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73';
+const PONS_FACTORY = '0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e';
 const MAINNET_RPC = 'https://rpc.mainnet.chain.robinhood.com';
 const TESTNET_RPC = 'https://rpc.testnet.chain.robinhood.com';
-const SLIPPAGE_NUM = 9n; // accept fills down to 90% of spot
-const SLIPPAGE_DEN = 10n;
+const CURVE_ABI = [
+  'function getReserves() view returns (uint256 quoteReserve, uint256 tokenReserve)',
+  'function buy(uint256 quoteIn, uint256 minTokensOut, address recipient) payable returns (uint256 tokensOut)',
+];
 
 const num = (name: string, fallback: string) => process.env[name] ?? fallback;
+
+/**
+ * Resolve the token's curve without trusting any struct layout: raw-call
+ * getLaunchedToken(token) on the factory and scan the returned words for an
+ * address that actually answers getReserves() with a live curve. An explicit
+ * CURVE_ADDRESS skips the scan but is validated the same way.
+ */
+async function resolveCurve(
+  factoryAddress: string,
+  tokenAddress: string,
+  signer: Signer,
+): Promise<string> {
+  const provider = signer.provider!;
+  const probe = async (candidate: string): Promise<boolean> => {
+    const code = await provider.getCode(candidate);
+    if (code === '0x') return false;
+    try {
+      const curve = new ethers.Contract(candidate, CURVE_ABI, provider);
+      const [quoteReserve, tokenReserve]: [bigint, bigint] = await curve.getReserves();
+      return quoteReserve > 0n && tokenReserve > 0n;
+    } catch {
+      return false;
+    }
+  };
+
+  if (process.env.CURVE_ADDRESS) {
+    if (!(await probe(process.env.CURVE_ADDRESS))) {
+      throw new Error(`CURVE_ADDRESS ${process.env.CURVE_ADDRESS} is not a live Pons curve`);
+    }
+    return process.env.CURVE_ADDRESS;
+  }
+
+  const selector = ethers.id('getLaunchedToken(address)').slice(0, 10);
+  const args = ethers.AbiCoder.defaultAbiCoder().encode(['address'], [tokenAddress]).slice(2);
+  const raw: string = await provider.call({ to: factoryAddress, data: selector + args });
+  const data = raw.replace(/^0x/, '');
+  if (data.length < 64) throw new Error('factory returned nothing for getLaunchedToken');
+  for (let offset = 0; offset + 64 <= data.length; offset += 64) {
+    const word = data.slice(offset, offset + 64);
+    const candidate = ethers.getAddress('0x' + word.slice(24)); // last 20 bytes
+    if (await probe(candidate)) return candidate;
+  }
+  throw new Error(
+    'could not resolve the token curve from the factory record - set CURVE_ADDRESS',
+  );
+}
 
 async function main() {
   const tokenAddress = process.env.TOKEN_ADDRESS;
@@ -75,7 +127,7 @@ async function main() {
   console.log(`deployer:     ${deployer.address}`);
   console.log(`balance:      ${ethers.formatEther(balance)} ETH`);
   console.log(`token:        ${tokenAddress}`);
-  console.log(`plan:         deploy swapper + smoke stack, create ${buyWallets} trader wallets,`);
+  console.log(`plan:         resolve the curve, create ${buyWallets} trader wallets,`);
   console.log(`              buy ${buyEthPerWallet} ETH of POKE each, fund pool with ${fundEth} ETH,`);
   console.log(`              thresholds [${thresholds}] USD, windows ${confirmWindow}s/${redeemDelay}s`);
 
@@ -91,52 +143,17 @@ async function main() {
     return;
   }
 
-  // 1. Discover the POKE/WETH pool (Pons tokens expose liquidityPool()).
-  let poolAddress = process.env.V3_POOL_ADDRESS ?? null;
-  if (!poolAddress) {
-    try {
-      poolAddress = await new ethers.Contract(
-        tokenAddress,
-        ['function liquidityPool() view returns (address)'],
-        deployer,
-      ).liquidityPool();
-    } catch {
-      /* not a Pons-style token */
-    }
-  }
-  if (!poolAddress || poolAddress === ethers.ZeroAddress) {
-    throw new Error('could not resolve the POKE pool: set V3_POOL_ADDRESS');
-  }
-  const pool = new ethers.Contract(
-    poolAddress,
-    [
-      'function token0() view returns (address)',
-      'function token1() view returns (address)',
-      'function slot0() view returns (uint160,int24,uint16,uint16,uint16,uint8,bool)',
-    ],
-    deployer,
+  // 1. Resolve the token's Pons bonding curve (pre-graduation pricing home).
+  const factoryAddress = num('PONS_FACTORY', PONS_FACTORY);
+  const curveAddress = await resolveCurve(factoryAddress, tokenAddress, deployer);
+  const curve = new ethers.Contract(curveAddress, CURVE_ABI, deployer);
+  const [quoteReserve, tokenReserve] = await curve.getReserves();
+  console.log(`curve:        ${curveAddress} (resolved from the factory record)`);
+  console.log(
+    `  reserves:   ${ethers.formatEther(quoteReserve)} quote / ${ethers.formatUnits(tokenReserve, 18)} POKE`,
   );
-  const [token0, token1] = [await pool.token0(), await pool.token1()];
-  const wethAddress = process.env.V3_WETH_ADDRESS ?? WETH_DEFAULT;
-  if (
-    wethAddress.toLowerCase() !== token0.toLowerCase() &&
-    wethAddress.toLowerCase() !== token1.toLowerCase()
-  ) {
-    throw new Error(`WETH ${wethAddress} is not an end of pool ${poolAddress} (ends: ${token0} / ${token1})`);
-  }
-  const zeroForOne = token0.toLowerCase() === wethAddress.toLowerCase(); // sell WETH for POKE
-  console.log(`pool:         ${poolAddress} (WETH ${zeroForOne ? 'token0' : 'token1'})`);
 
-  // 2. Deploy (or reuse) the swap helper.
-  let swapperAddress = process.env.SWAPPER_ADDRESS;
-  if (!swapperAddress) {
-    const swapper = await (await ethers.getContractFactory('SmokeSwapper')).deploy(wethAddress);
-    await swapper.waitForDeployment();
-    swapperAddress = await swapper.getAddress();
-    console.log(`swapper:      ${swapperAddress} (throwaway helper)`);
-  }
-
-  // 3. Create and seed throwaway trader wallets.
+  // 2. Create and seed throwaway trader wallets.
   const walletsPath = path.resolve(__dirname, '../deployments', `${network.name}.smoke-wallets.json`);
   const traders: { address: string; privateKey: string }[] = [];
   for (let i = 0; i < buyWallets; i++) {
@@ -166,31 +183,30 @@ async function main() {
     console.log(`  seeded ${trader.address} with ${(+buyEthPerWallet + +traderGasEth).toFixed(4)} ETH (${tx.hash})`);
   }
 
-  // 4. Buy POKE into each trader wallet through the swapper.
-  const [, sqrtPriceX96] = await pool.slot0();
-  const sq = BigInt(sqrtPriceX96);
-  const priceToken1PerToken0 = (sq * sq) / (1n << 192n); // both sides 18 decimals
-  const spotOut = zeroForOne ? priceToken1PerToken0 : (1n << 192n) / priceToken1PerToken0;
-  const swapper = new ethers.Contract(
-    swapperAddress,
-    ['function swapEthToToken(address pool, address outToken, address to, uint256 minOut) payable returns (uint256)'],
-    deployer,
-  );
+  // 3. Buy POKE into each trader wallet straight off the curve. The curve
+  // takes the quote from msg.value and credits `recipient`; minTokensOut uses
+  // half the marginal price as the floor - smoke buys are tiny against a
+  // 1.68+ ETH reserve, so real fills land far above it while total failures
+  // (wrong curve, reverted tx) still revert.
+  console.log('  waiting 10s for Pons\' 5s snipe-tax window to pass before buying');
+  await new Promise((r) => setTimeout(r, 10_000));
   for (const trader of traders) {
-    const minOut = (spotOut * ethers.parseEther(buyEthPerWallet) * SLIPPAGE_NUM) / SLIPPAGE_DEN;
+    const traderWallet = new ethers.Wallet(trader.privateKey, ethers.provider);
+    const quoteIn = ethers.parseEther(buyEthPerWallet);
+    const minOut = (quoteIn * tokenReserve) / quoteReserve / 2n;
+    const buyOnce = async () =>
+      (
+        await curve
+          .connect(traderWallet)
+          .getFunction('buy')(quoteIn, minOut, trader.address, { value: quoteIn })
+      ).wait();
     try {
-      const tx = await swapper.swapEthToToken(poolAddress, tokenAddress, trader.address, minOut, {
-        value: ethers.parseEther(buyEthPerWallet),
-      });
-      await tx.wait();
+      await buyOnce();
     } catch {
-      // launch-protection blocks the first pools; wait it out and retry once
+      // launch-protection blocks the first moments; wait it out and retry once
       console.log('  buy reverted (launch protection?) - retrying in 15s');
       await new Promise((r) => setTimeout(r, 15_000));
-      const tx = await swapper.swapEthToToken(poolAddress, tokenAddress, trader.address, minOut, {
-        value: ethers.parseEther(buyEthPerWallet),
-      });
-      await tx.wait();
+      await buyOnce();
     }
     const poke = new ethers.Contract(
       tokenAddress,
@@ -200,14 +216,14 @@ async function main() {
     console.log(`  ${trader.address}: ${ethers.formatEther(await poke.balanceOf(trader.address))} POKE`);
   }
 
-  // 5. Deploy the smoke stack through the existing deploy script.
+  // 4. Deploy the smoke stack through the existing deploy script: the curve
+  // oracle path prices the pre-graduation cap straight off the bonding curve.
   console.log('\ndeploying the smoke stack...');
   const childEnv = {
     ...process.env,
     TOKEN_ADDRESS: tokenAddress,
     MOCK_ORACLE: '0',
-    V3_POOL_ADDRESS: poolAddress,
-    V3_WETH_ADDRESS: wethAddress,
+    CURVE_ADDRESS: curveAddress,
     THRESHOLDS: thresholds,
     CONFIRM_WINDOW: confirmWindow,
     REDEEM_DELAY: redeemDelay,
@@ -230,7 +246,7 @@ async function main() {
     token: string;
   };
 
-  // 6. Price the oracle when there is no Chainlink feed on the chain.
+  // 5. Price the oracle when there is no Chainlink feed on the chain.
   const oracle = new ethers.Contract(
     record.oracle,
     [
@@ -258,7 +274,7 @@ async function main() {
     console.log(`WARNING: marketCap() reverted: ${(e as Error).message?.slice(0, 140)}`);
   }
 
-  // 7. Fund the redemption pool through the existing fund script (it also
+  // 6. Fund the redemption pool through the existing fund script (it also
   // prints the outstanding liability).
   const fundResult = spawnSync(`npx hardhat run scripts/fund-pool.ts --network ${network.name}`, {
     shell: true,
@@ -267,7 +283,7 @@ async function main() {
   });
   if (fundResult.status !== 0) throw new Error('fund-pool.ts failed - see output above');
 
-  // 8. Enter the draw from the first trader wallet (it holds POKE).
+  // 7. Enter the draw from the first trader wallet (it holds POKE).
   const trader = new ethers.Wallet(traders[0].privateKey, ethers.provider);
   const cards = new ethers.Contract(
     record.cards,
@@ -277,7 +293,7 @@ async function main() {
   await (await cards.enterDraw()).wait();
   console.log(`draw:         ${trader.address} entered (${await cards.entrantCount()} in the draw)`);
 
-  // 9. Hand off: print the site envs, then run the keeper in this console.
+  // 8. Hand off: print the site envs, then run the keeper in this console.
   const rpcUrl = isMainnet ? MAINNET_RPC : TESTNET_RPC;
   console.log('\n=== Point the site at this stack ===');
   console.log(`VITE_ROBINHOOD_TESTNET=${isMainnet ? '  # unset = mainnet' : '1'}`);
@@ -320,6 +336,7 @@ async function main() {
         KEEPER_PRIVATE_KEY: keeperKey,
         CARDS_ADDRESS: record.cards,
         KEEPER_RPC_URL: rpcUrl,
+        CURVE_ADDRESS: curveAddress,
         INTERVAL_MS: process.env.INTERVAL_MS ?? '15000',
       },
     },

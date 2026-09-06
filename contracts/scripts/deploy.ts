@@ -16,6 +16,9 @@ const THRESHOLDS_DEFAULT = '10000,25000,50000,100000,250000,500000,1000000';
  *   MOCK_ORACLE=1        deploy the mock oracle (testnet/local runs; refused on mainnet)
  *   ORACLE_ADDRESS=      production oracle when not mocking; unset + V4_* or V3_*
  *                        vars deploys a fresh spot oracle instead
+ *   CURVE_ADDRESS=       Pons bonding curve of a pre-graduation token: there
+ *                        is no pool yet, so the oracle prices the cap off the
+ *                        curve's reserves (PonsCurveOracle)
  *   V3_POOL_ADDRESS=     Pons path: the token's Uniswap v3 pool. Unset with a
  *                        Pons TOKEN_ADDRESS auto-discovers it via liquidityPool()
  *   V3_WETH_ADDRESS=     WETH the pool is quoted against (default: Robinhood mainnet WETH)
@@ -70,7 +73,7 @@ async function main() {
   }
 
   let oracleAddress: string;
-  let oracleKind: 'mock' | 'external' | 'v4' | 'v3';
+  let oracleKind: 'mock' | 'external' | 'v4' | 'v3' | 'curve';
   if (mock) {
     const oracle = await (await ethers.getContractFactory('MockMilestonePriceOracle')).deploy();
     await oracle.waitForDeployment();
@@ -105,6 +108,19 @@ async function main() {
     } catch {
       throw new Error(`ORACLE_ADDRESS ${oracleAddress} does not answer marketCap() - refusing to wire it`);
     }
+  } else if (process.env.CURVE_ADDRESS) {
+    // Pons pre-graduation: the token trades on its bonding curve and there is
+    // no pool yet, so the cap prices off the curve's reserves.
+    const oracle = await (await ethers.getContractFactory('PonsCurveOracle')).deploy(
+      process.env.CURVE_ADDRESS,
+      tokenAddress,
+      process.env.ETH_USD_FEED_ADDRESS ?? ethers.ZeroAddress,
+      BigInt(process.env.ORACLE_MAX_STALENESS ?? '3600'),
+    );
+    await oracle.waitForDeployment();
+    oracleAddress = await oracle.getAddress();
+    oracleKind = 'curve';
+    console.log('PonsCurveOracle:', oracleAddress, 'curve', process.env.CURVE_ADDRESS);
   } else if (process.env.V4_STATEVIEW_ADDRESS && process.env.V4_WETH_ADDRESS) {
     const poolKey = {
       currency0: tokenAddress.toLowerCase() < process.env.V4_WETH_ADDRESS.toLowerCase()
@@ -146,9 +162,9 @@ async function main() {
       }
     }
     if (!poolAddress || poolAddress === ethers.ZeroAddress) {
-      throw new Error(
-        'Set ORACLE_ADDRESS, V4_STATEVIEW_ADDRESS + V4_WETH_ADDRESS, or V3_POOL_ADDRESS (or launch via Pons so liquidityPool() resolves) when MOCK_ORACLE is not 1',
-      );
+    throw new Error(
+      `Set CURVE_ADDRESS (pre-graduation Pons curve), ORACLE_ADDRESS, V4_STATEVIEW_ADDRESS + V4_WETH_ADDRESS, or V3_POOL_ADDRESS (or launch via Pons so liquidityPool() resolves) when MOCK_ORACLE is not 1`,
+    );
     }
     const oracle = await (await ethers.getContractFactory('UniswapV3SpotOracle')).deploy(
       poolAddress,

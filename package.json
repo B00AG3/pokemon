@@ -20,6 +20,9 @@
     "viem": "^2.56.1",
     "wagmi": "^2.19.5"
   },
+  "overrides": {
+    "axios": "^1.17.1"
+  },
   "devDependencies": {
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",

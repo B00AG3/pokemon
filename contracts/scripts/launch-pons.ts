@@ -11,7 +11,8 @@ dotenv.config();
  *
  * The token launches with ZERO creator tax ("no tax") and native ETH as the
  * reserve, matching what the PokeCard contracts expect (curve graduates into
- * a Uniswap pool once 4.2 ETH of buys have gone through the curve).
+ * a locked Uniswap v4 pool once 4.2 ETH of buys have gone through the curve).
+ * Specs verified against the official docs: https://docs.ponsfamily.com/v2
  *
  * Env:
  *   NAME, SYMBOL         required - token name and ticker
@@ -36,7 +37,9 @@ const factoryAbi = [
   'function launchConfigCount() view returns (uint256)',
   'function getLaunchConfig(uint256 id) view returns ((uint256 supply, uint256 curveFeeBps, uint256 phantomQuote, uint256 graduationThreshold, uint24 poolFee, int24 tickSpacing, bool enabled))',
   'function previewLaunchEconomics(uint256 id, address pairToken) view returns (bytes32)',
+  'function canLaunch(address) view returns (bool)',
   'function launchToken((string name, string symbol, string logo, string description, (string twitter, string telegram, string discord, string website, string farcaster) socials, address creatorFeeRecipient, uint16 creatorTaxBps, bool buybackEnabled, bytes32 expectedEconomics, bytes32 salt) params, uint256 launchConfigId, address pairToken) payable returns (address token, address curve)',
+  // 3 indexed fields, per the official "Events to index" section
   'event TokenLaunched(address indexed token, address indexed curve, address indexed deployer, address pairToken, uint256 launchConfigId, uint256 graduationThreshold)',
 ];
 
@@ -71,7 +74,7 @@ async function main() {
   const params = {
     name,
     symbol,
-    logo: num('LOGO', 'https://pokecard.fun/cards/base1-4_hires.png'),
+    logo: num('LOGO', 'https://raw.githubusercontent.com/B00AG3/pokemon/main/public/cards/base1-4.png'),
     description: num('DESCRIPTION', ''),
     socials: {
       twitter: num('TWITTER', ''),
@@ -88,8 +91,10 @@ async function main() {
   };
 
   const balance = await provider.getBalance(dev.address);
+  const allowed: boolean = await factory.canLaunch(dev.address);
   console.log(`Pons launch plan (factory ${FACTORY})`);
   console.log(`  dev wallet:      ${dev.address} (balance ${Number(balance) / 1e18} ETH)`);
+  console.log(`  can launch:      ${allowed ? 'yes' : 'NO (restricted to whitelisted wallets)'}`);
   console.log(`  token:           ${params.name} ($${params.symbol})`);
   console.log(`  logo:            ${params.logo}`);
   console.log(`  creator tax:     ${params.creatorTaxBps} bps | buyback: ${params.buybackEnabled}`);
@@ -105,6 +110,9 @@ async function main() {
   }
 
   if (balance < fee) throw new Error('dev wallet cannot cover the launch fee');
+  if (!(await factory.canLaunch(dev.address))) {
+    throw new Error('canLaunch(dev) is false: the public gate is closed and this wallet is not whitelisted');
+  }
 
   console.log('\nSending launchToken...');
   const tx = await factory.launchToken(params, configId, pairToken, { value: fee });

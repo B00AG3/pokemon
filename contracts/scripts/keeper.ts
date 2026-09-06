@@ -57,9 +57,13 @@ const SWEEP_QUOTE_TOKENS = (
 ).split(',');
 const TEAM_ADDRESS = process.env.TEAM_ADDRESS;
 
+// escrow ledger per the official v2 docs: native ETH is balanceOf/claim(),
+// every ERC-20 side (WETH quote, POKE) is balanceOfToken/claimToken(token)
 const escrowAbi = [
-  'function balanceOfToken(address account, address token) view returns (uint256)',
-  'function claimToken(address token, uint256 amount)',
+  'function balanceOf(address recipient) view returns (uint256)',
+  'function balanceOfToken(address recipient, address token) view returns (uint256)',
+  'function claim()',
+  'function claimToken(address token)',
 ];
 
 const cardsAbi = [
@@ -98,11 +102,15 @@ async function sweep(wallet: ethers.Wallet, cards: ethers.Contract): Promise<voi
   lastSweepAt = Date.now();
 
   const escrow = new ethers.Contract(PONS_FEE_ESCROW, escrowAbi, wallet);
-  const tokens = [ethers.ZeroAddress, ...SWEEP_QUOTE_TOKENS, POKE_TOKEN].filter(
-    (t, i, all) => all.indexOf(t) === i,
-  );
+  // native accrues on its own ledger; quote tokens (WETH) and POKE on theirs
   const pending: Array<{ token: string; amount: bigint }> = [];
-  for (const token of tokens) {
+  try {
+    const native: bigint = await escrow.balanceOf(wallet.address);
+    if (native > 0n) pending.push({ token: ethers.ZeroAddress, amount: native });
+  } catch {
+    /* escrow read failed; skip */
+  }
+  for (const token of SWEEP_QUOTE_TOKENS.concat(POKE_TOKEN)) {
     try {
       const amount: bigint = await escrow.balanceOfToken(wallet.address, token);
       if (amount > 0n) pending.push({ token, amount });
@@ -121,7 +129,8 @@ async function sweep(wallet: ethers.Wallet, cards: ethers.Contract): Promise<voi
 
   for (const { token, amount } of pending) {
     if (amount < SWEEP_MIN_WEI) continue;
-    const tx = await escrow.claimToken(token, amount);
+    const tx =
+      token === ethers.ZeroAddress ? await escrow.claim() : await escrow.claimToken(token);
     await tx.wait();
     console.log(`[keeper][sweep] claimed ${fmt(amount)} of ${token} - tx ${tx.hash}`);
   }

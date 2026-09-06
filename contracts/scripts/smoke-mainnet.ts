@@ -144,9 +144,18 @@ async function main() {
     traders.push({ address: wallet.address, privateKey: wallet.privateKey });
   }
   fs.writeFileSync(walletsPath, JSON.stringify(traders, null, 2));
+  // Throwaway keys: scrub the file when this process exits (success, error,
+  // or Ctrl+C) so plaintext keys never outlive the run.
+  process.on('exit', () => {
+    try {
+      fs.rmSync(walletsPath, { force: true });
+    } catch {
+      /* best effort */
+    }
+  });
   console.log(
     `traders:      ${traders.map((t) => t.address).join(', ')}\n` +
-      `              keys saved to ${path.basename(walletsPath)} (gitignored - do not commit)`,
+      `              keys saved to ${path.basename(walletsPath)} (gitignored, deleted on exit - do not commit)`,
   );
   for (const trader of traders) {
     const tx = await deployer.sendTransaction({

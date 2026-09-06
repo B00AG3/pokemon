@@ -77,6 +77,7 @@ const cardsAbi = [
   'function lastCheckpointAt() view returns (uint256)',
   'function totalMinted() view returns (uint256)',
   'function entrantCount() view returns (uint256)',
+  'function chartPriceOf(uint256 tokenId) view returns (uint256)',
   'event MilestoneMinted(uint256 indexed index, uint256 indexed tokenId, uint256 marketCap, address indexed to)',
 ];
 const oracleAbi = ['function marketCap() view returns (uint256)'];
@@ -189,12 +190,14 @@ async function poll() {
     }
     console.log(`[keeper] market cap $${fmt(mc)} | next milestone #${index} at $${fmt(threshold)}${drawInfo}`);
 
-    if (mc < threshold) return;
-
     const now = BigInt(Math.floor(Date.now() / 1000));
 
-    // Feed redemption pricing: checkpoint at most once per contract gap.
-    // The contract no-ops on early calls; skip the tx when nothing is due.
+    // Feed redemption pricing on a fixed cadence, regardless of threshold
+    // state: fresh checkpoints keep the aged cap honest even between rungs.
+    // The contract itself bounds what a sample may claim (it reverts
+    // CheckpointAboveBound for caps far past the next threshold), so a
+    // pool-price spike lands here as a skipped checkpoint, never as inflated
+    // redemption pricing.
     try {
       const lastCheckpoint: bigint = await cards.lastCheckpointAt();
       if (now - lastCheckpoint >= 840n) {
@@ -203,9 +206,13 @@ async function poll() {
         await cp.wait();
         console.log(`[keeper] cap checkpoint recorded - tx ${cp.hash}`);
       }
-    } catch {
-      /* older deployment without checkpoint pricing */
+    } catch (error) {
+      console.log(
+        `[keeper] checkpoint skipped: ${(error as Error).message?.split('\n')[0]?.slice(0, 120) ?? error}`,
+      );
     }
+
+    if (mc < threshold) return;
 
     const window: bigint = await cards.confirmWindow();
     let crossed: bigint = 0n;

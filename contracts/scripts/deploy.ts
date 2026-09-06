@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { ethers, network } from 'hardhat';
+import { artifacts, ethers, network } from 'hardhat';
 
 const THRESHOLDS_DEFAULT = '10000,25000,50000,100000,250000,500000,1000000';
 
@@ -26,7 +26,8 @@ const THRESHOLDS_DEFAULT = '10000,25000,50000,100000,250000,500000,1000000';
  *   V4_POOL_FEE / V4_TICK_SPACING / V4_HOOKS = pool key of the POKE pool (v4 oracle deploy)
  *   ORACLE_MAX_STALENESS=  seconds for the ETH/USD feed (default 3600)
  *   THRESHOLDS=          comma-separated USD market cap milestones
- *   CONFIRM_WINDOW=      seconds the cap must hold above the threshold (0 = instant)
+ *   CONFIRM_WINDOW=      seconds the cap must hold above the threshold
+ *                        (default 3600; 0 opts out, discouraged)
  *   REDEEM_DELAY=        seconds a cap checkpoint must age before pricing redemptions (default 21600)
  *   BASE_TOKEN_URI=      metadata base URI, e.g. ipfs://<cid>/
  *   KEEPER_ADDRESS=      address allowed to mint (defaults to deployer)
@@ -44,7 +45,12 @@ async function main() {
   const thresholds = (process.env.THRESHOLDS ?? THRESHOLDS_DEFAULT)
     .split(',')
     .map((s) => BigInt(s.trim()) * 10n ** 18n);
-  const confirmWindow = BigInt(process.env.CONFIRM_WINDOW ?? '0');
+  const confirmWindow = BigInt(process.env.CONFIRM_WINDOW ?? '3600');
+  if (confirmWindow === 0n) {
+    console.log(
+      '  WARNING: CONFIRM_WINDOW=0 disables the hold-above-threshold check; milestone mints go out on the first cap sighting. Prefer a positive window (e.g. 3600).',
+    );
+  }
   const redeemDelay = BigInt(process.env.REDEEM_DELAY ?? '21600');
   const baseTokenURI = process.env.BASE_TOKEN_URI ?? 'ipfs://pokecard-lab/';
   const keeper = process.env.KEEPER_ADDRESS ?? deployer.address;
@@ -74,6 +80,31 @@ async function main() {
   } else if (process.env.ORACLE_ADDRESS) {
     oracleAddress = process.env.ORACLE_ADDRESS;
     oracleKind = 'external';
+    // Never wire an unverified price source into a live deployment: the
+    // address must hold code, must not be one of this repo's mocks, and must
+    // actually answer marketCap() (the mock setters now also revert on
+    // mainnet, so this is defense in depth).
+    const code = await ethers.provider.getCode(oracleAddress);
+    if (code === '0x') {
+      throw new Error(`ORACLE_ADDRESS ${oracleAddress} holds no contract code`);
+    }
+    for (const mockName of ['MockMilestonePriceOracle', 'MockAggregator', 'MockV3Pool', 'MockStateView']) {
+      const artifact = await artifacts.readArtifact(mockName);
+      if (code.toLowerCase() === artifact.deployedBytecode.toLowerCase()) {
+        throw new Error(`ORACLE_ADDRESS is a deployed ${mockName}; mocks cannot price a live deployment`);
+      }
+    }
+    const probe = new ethers.Contract(
+      oracleAddress,
+      ['function marketCap() view returns (uint256)'],
+      ethers.provider,
+    );
+    try {
+      const cap: bigint = await probe.marketCap();
+      console.log(`  external oracle ${oracleAddress} marketCap read: ${ethers.formatUnits(cap, 18)} USD`);
+    } catch {
+      throw new Error(`ORACLE_ADDRESS ${oracleAddress} does not answer marketCap() - refusing to wire it`);
+    }
   } else if (process.env.V4_STATEVIEW_ADDRESS && process.env.V4_WETH_ADDRESS) {
     const poolKey = {
       currency0: tokenAddress.toLowerCase() < process.env.V4_WETH_ADDRESS.toLowerCase()

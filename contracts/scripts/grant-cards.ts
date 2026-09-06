@@ -16,15 +16,32 @@ async function main() {
     fs.readFileSync(path.resolve(__dirname, `../deployments/${network.name}.json`), 'utf8'),
   ) as {
     deployer: string;
+    keeper?: string;
     oracle: string;
     cards: string;
     thresholds: string[];
     confirmWindow: string;
   };
 
-  const [deployer] = await ethers.getSigners();
+  const [deployer, keeperSigner] = await ethers.getSigners();
   if (deployer.address.toLowerCase() !== record.deployer.toLowerCase()) {
     throw new Error('signer is not the deployment deployer');
+  }
+  // Mints are keeper-gated (the owner no longer passes onlyKeeper), so when
+  // the deployment's keeper differs from the deployer this script must run
+  // with KEEPER_PRIVATE_KEY in the environment: hardhat.config.ts exposes it
+  // as signer index 1.
+  const keeperAddress = record.keeper ?? record.deployer;
+  const ops =
+    keeperAddress.toLowerCase() === deployer.address.toLowerCase()
+      ? deployer
+      : keeperSigner && keeperAddress.toLowerCase() === (await keeperSigner.getAddress()).toLowerCase()
+        ? keeperSigner
+        : null;
+  if (!ops) {
+    throw new Error(
+      `keeper ${keeperAddress} is not loaded; set KEEPER_PRIVATE_KEY in contracts/.env so it becomes signer index 1`,
+    );
   }
   const oracle = await ethers.getContractAt('MockMilestonePriceOracle', record.oracle);
   const cards = await ethers.getContractAt('MilestoneCards', record.cards);
@@ -39,7 +56,7 @@ async function main() {
     const i = Number(index);
 
     await (await oracle.setMarketCap(threshold)).wait();
-    await (await cards.connect(deployer).confirmCrossing()).wait();
+    await (await cards.connect(ops).confirmCrossing()).wait();
 
     if (window > 0n) {
       const crossed: bigint = await cards.crossingAt(BigInt(i));
@@ -49,7 +66,7 @@ async function main() {
       await new Promise((resolve) => setTimeout(resolve, waitMs));
     }
 
-    await (await cards.connect(deployer).mintNext()).wait();
+    await (await cards.connect(ops).mintNext()).wait();
     console.log(`  minted card #${i + 1} at $${threshold / ONE} market cap`);
   }
 

@@ -4,7 +4,7 @@ import CardCoverflow from '../components/CardCoverflow';
 import MarketSection from '../components/MarketSection';
 import Reveal from '../components/Reveal';
 import { useMarket } from '../state/MarketProvider';
-import { LADDER_TCG_IDS } from '../constants/ladder';
+import { LADDER_TCG_IDS, LADDER_USD } from '../constants/ladder';
 import type { CardListItem } from '../types/pokemontcg';
 
 const IntroTour = lazy(() => import('../components/IntroTour'));
@@ -95,7 +95,8 @@ export default function Home({
             How it works
           </h2>
           <p className="font-mono text-xs text-white/40">
-            7 milestones - $10,000 to $1,000,000
+            {LADDER_USD.length} milestones - ${LADDER_USD[0].toLocaleString('en-US')} to $
+            {LADDER_USD[LADDER_USD.length - 1].toLocaleString('en-US')}
           </p>
         </div>
 

@@ -1,6 +1,6 @@
 import { getCardImageUrl } from '../services/pokemontcg';
 import { useMarket } from '../state/MarketProvider';
-import { MILESTONES, formatUsd } from '../constants/ladder';
+import { LADDER_USD, MILESTONES, formatUsd } from '../constants/ladder';
 
 /**
  * The full milestone ladder. Minted state comes from the chain in live mode;
@@ -107,9 +107,9 @@ export default function Roadmap() {
       <p className="mt-6 max-w-2xl text-sm leading-relaxed text-white/55">
         Every card airdrops free to a drawn holder - the only ticket is
         holding POKE when the cap crosses. From there cards sell holder to
-        holder, with the chart as the reference: at a {formatUsd(1000000)}{' '}
-        cap, a card from the {formatUsd(10000)} milestone references 100x its
-        base price.
+        holder, with the chart as the reference: at a {formatUsd(LADDER_USD[LADDER_USD.length - 1])}{' '}
+        cap, a card from the {formatUsd(LADDER_USD[0])} milestone references{' '}
+        {LADDER_USD[LADDER_USD.length - 1] / LADDER_USD[0]}x its base price.
       </p>
     </section>
   );

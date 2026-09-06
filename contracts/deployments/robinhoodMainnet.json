@@ -1,0 +1,24 @@
+{
+  "network": "robinhoodMainnet",
+  "chainId": 4663,
+  "deployedAt": "2026-09-06T16:53:21.391Z",
+  "deployer": "0xb60a984E235Dab1aE57F99398A5229f1116d9972",
+  "keeper": "0xD805A36605391b1ed8C3E7d1C846d2D161541d6f",
+  "token": "0xf441fece1fefbe866b294e4e104f019579a464ec",
+  "oracle": "0x9610454e25551B2317973fA831450dd198F9F173",
+  "oracleKind": "curve",
+  "deployedOracle": false,
+  "mockOracle": false,
+  "cards": "0xA45e5d47D6147256B5497Be598AC04B3dA4c3Fe3",
+  "sale": null,
+  "swap": "0x583380c8cAF79a0C0A2fEB4Fc414E3d590A5D019",
+  "thresholds": [
+    "4000000000000000000000",
+    "6000000000000000000000",
+    "7000000000000000000000"
+  ],
+  "confirmWindow": "60",
+  "redeemDelay": "60",
+  "redeemBasePriceWei": "1000000000000000",
+  "baseTokenURI": "ipfs://pokecard-lab/"
+}

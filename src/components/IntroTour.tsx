@@ -396,7 +396,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
                   <path d="M6 16h6M20 16h6" stroke="#f2f2f0" strokeWidth="2" />
                   <circle cx="16" cy="16" r="3.2" fill="#f2f2f0" />
                 </svg>
-                <span className="text-sm font-semibold text-[#f2f2f0]">PokeCard Lab</span>
+                <span className="text-sm font-semibold text-[#f2f2f0]">Pokedrop</span>
               </div>
               <span className="tour-btn tour-btn-primary tour-btn-sm">Connect Wallet</span>
             </div>

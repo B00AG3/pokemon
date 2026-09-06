@@ -149,7 +149,7 @@ contract MilestoneCards is ERC721, ERC2981, Ownable, Pausable, ReentrancyGuard {
         uint256[] memory thresholds,
         uint256 confirmWindow_,
         uint256 redeemDelay_
-    ) ERC721('PokeCard Milestone Cards', 'PCMC') Ownable(msg.sender) Pausable() ReentrancyGuard() {
+    ) ERC721('Pokedrop Cards', 'PDRP') Ownable(msg.sender) Pausable() ReentrancyGuard() {
         if (oracle_ == address(0)) revert InvalidAddress();
         if (keeper_ == address(0)) revert InvalidAddress();
         if (pokeToken_ == address(0)) revert InvalidAddress();

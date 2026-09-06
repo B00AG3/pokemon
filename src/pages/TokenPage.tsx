@@ -112,7 +112,7 @@ export default function TokenPage() {
         <div className="flex flex-wrap items-center gap-x-10 gap-y-4">
           <div>
             <p className="font-mono text-[11px] text-white/40">token</p>
-            <p className="mt-1.5 font-display text-xl font-medium">PokeCard Token</p>
+            <p className="mt-1.5 font-display text-xl font-medium">Pokedrop Token</p>
           </div>
           <div className="sm:border-l sm:border-white/10 sm:pl-10">
             <p className="font-mono text-[11px] text-white/40">symbol</p>

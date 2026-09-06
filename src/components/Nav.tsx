@@ -34,7 +34,7 @@ export default function Nav({ onHowItWorks }: { onHowItWorks?: () => void }) {
       <Link to="/" className="flex items-center gap-2.5">
         <PokeballMark className="h-6 w-6 text-white" />
         <span className="font-display text-[17px] font-medium tracking-wide">
-          PokeCard Lab
+          Pokedrop
         </span>
       </Link>
       <div className="flex flex-wrap items-center gap-4 lg:gap-6">

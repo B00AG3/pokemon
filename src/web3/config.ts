@@ -15,7 +15,7 @@ const testnet = import.meta.env.VITE_ROBINHOOD_TESTNET === '1';
 export const targetChain = testnet ? robinhoodTestnet : robinhoodChain;
 
 export const wagmiConfig = getDefaultConfig({
-  appName: 'PokeCard Lab',
+  appName: 'Pokedrop',
   projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID ?? '00000000000000000000000000000000',
   chains: [targetChain] as const,
   wallets: [

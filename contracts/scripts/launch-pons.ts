@@ -74,7 +74,7 @@ async function main() {
   const params = {
     name,
     symbol,
-    logo: num('LOGO', 'https://raw.githubusercontent.com/B00AG3/pokemon/main/public/cards/base1-4.png'),
+    logo: num('LOGO', 'https://pokemon-zeta-vert.vercel.app/cards/base1-4.png'),
     description: num('DESCRIPTION', ''),
     socials: {
       twitter: num('TWITTER', ''),

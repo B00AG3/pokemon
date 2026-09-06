@@ -9,7 +9,14 @@ contract MockStateView is IStateView {
 
     event SqrtPriceSet(bytes32 indexed poolId, uint160 sqrtPriceX96);
 
-    function setSqrtPriceX96(bytes32 poolId, uint160 sqrtPriceX96) external {
+    error MainnetForbidden();
+
+    modifier notOnMainnet() {
+        if (block.chainid == 4663) revert MainnetForbidden();
+        _;
+    }
+
+    function setSqrtPriceX96(bytes32 poolId, uint160 sqrtPriceX96) external notOnMainnet {
         slot0SqrtPriceX96[poolId] = sqrtPriceX96;
         emit SqrtPriceSet(poolId, sqrtPriceX96);
     }

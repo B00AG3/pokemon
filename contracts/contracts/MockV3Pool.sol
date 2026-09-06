@@ -9,12 +9,19 @@ contract MockV3Pool is IV3Pool {
     address public immutable mockToken1;
     uint160 public sqrtPriceX96;
 
+    error MainnetForbidden();
+
+    modifier notOnMainnet() {
+        if (block.chainid == 4663) revert MainnetForbidden();
+        _;
+    }
+
     constructor(address token0_, address token1_) {
         mockToken0 = token0_;
         mockToken1 = token1_;
     }
 
-    function setSqrtPriceX96(uint160 price) external {
+    function setSqrtPriceX96(uint160 price) external notOnMainnet {
         sqrtPriceX96 = price;
     }
 

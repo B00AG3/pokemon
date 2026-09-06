@@ -5,6 +5,8 @@ import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import {ERC2981} from '@openzeppelin/contracts/token/common/ERC2981.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Pausable} from '@openzeppelin/contracts/utils/Pausable.sol';
+import {ReentrancyGuard} from '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
+import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {Strings} from '@openzeppelin/contracts/utils/Strings.sol';
 import {IMilestonePriceOracle} from './IMilestonePriceOracle.sol';
 
@@ -42,7 +44,7 @@ interface IERC20Balance {
 /// data. A validator/keeper can influence it, so this is a trust-minimized
 /// raffle, not a cryptographic VRF - the same trust placed in the keeper for
 /// gating mints. For adversarial stake levels, swap in a VRF callback.
-contract MilestoneCards is ERC721, ERC2981, Ownable, Pausable {
+contract MilestoneCards is ERC721, ERC2981, Ownable, Pausable, ReentrancyGuard {
     struct Milestone {
         uint256 marketCap; // USD, 18 decimals
         bool minted;
@@ -71,6 +73,27 @@ contract MilestoneCards is ERC721, ERC2981, Ownable, Pausable {
     uint256 internal constant CHECKPOINT_GAP = 15 minutes;
     uint256 internal constant CAP_HISTORY = 32;
 
+    /// @dev A checkpoint sample claiming more than this multiple of the
+    /// reference cap is refused as a pumped- or corrupted-oracle read. The
+    /// reference is the next un-minted milestone threshold while the ladder
+    /// runs (a real crossing samples a cap just past that threshold), twice
+    /// the newest recorded cap afterwards, and twice the top threshold for
+    /// the first sample after the ladder completes. This bounds what a brief
+    /// pool-price pump can write into the redemption history - and therefore
+    /// what one spiked sample can inflate payouts by - to a small factor.
+    /// TWAP sampling remains the deeper fix.
+    uint256 public constant CHECKPOINT_CAP_SLACK = 2;
+
+    /// @dev setConfirmWindow accepts 0 (explicit disable) or at least this
+    /// many seconds, so the hold-above-threshold confirmation cannot be
+    /// whittled down to a formality.
+    uint256 public constant MIN_CONFIRM_WINDOW = 60;
+
+    /// @dev setRedeemBasePrice may raise the chart base by at most this
+    /// multiple per call; lowering it is unlimited. Blunts single-tx
+    /// repricing by a compromised or phished owner key.
+    uint256 public constant MAX_PRICE_STEP = 100;
+
     struct CapPoint {
         uint128 at;
         uint128 cap; // USD, 18 decimals
@@ -85,6 +108,7 @@ contract MilestoneCards is ERC721, ERC2981, Ownable, Pausable {
 
     event MilestoneMinted(uint256 indexed index, uint256 indexed tokenId, uint256 marketCap, address indexed to);
     event CardRedeemed(uint256 indexed tokenId, address indexed holder, uint256 price);
+    event PoolWithdrawn(address indexed to, uint256 amount);
     event DrawEntered(address indexed account);
     event DrawLeft(address indexed account);
     event KeeperUpdated(address indexed keeper);
@@ -106,9 +130,13 @@ contract MilestoneCards is ERC721, ERC2981, Ownable, Pausable {
     error InsufficientPool();
     error EthTransferFailed();
     error ChartNotReady();
+    error CheckpointAboveBound();
+    error CapOverflow();
+    error ConfirmWindowTooShort();
+    error PriceStepTooLarge();
 
     modifier onlyKeeper() {
-        if (msg.sender != keeper && msg.sender != owner()) revert NotKeeper();
+        if (msg.sender != keeper) revert NotKeeper();
         _;
     }
 
@@ -121,7 +149,7 @@ contract MilestoneCards is ERC721, ERC2981, Ownable, Pausable {
         uint256[] memory thresholds,
         uint256 confirmWindow_,
         uint256 redeemDelay_
-    ) ERC721('PokeCard Milestone Cards', 'PCMC') Ownable(msg.sender) Pausable() {
+    ) ERC721('PokeCard Milestone Cards', 'PCMC') Ownable(msg.sender) Pausable() ReentrancyGuard() {
         if (oracle_ == address(0)) revert InvalidAddress();
         if (keeper_ == address(0)) revert InvalidAddress();
         if (pokeToken_ == address(0)) revert InvalidAddress();
@@ -147,6 +175,7 @@ contract MilestoneCards is ERC721, ERC2981, Ownable, Pausable {
     /// @notice Ops: pull ETH out of the redemption pool.
     function withdrawPool(address to, uint256 amount) external onlyOwner {
         _send(to, amount);
+        emit PoolWithdrawn(to, amount);
     }
 
     /// @notice Join the standing airdrop draw. One entry per wallet, and the
@@ -194,19 +223,34 @@ contract MilestoneCards is ERC721, ERC2981, Ownable, Pausable {
         uint256 threshold = _milestones[tokenId - 1].marketCap;
         uint256 cap = agedMarketCap();
         if (cap == 0) revert ChartNotReady();
-        return (redeemBasePrice * cap) / threshold;
+        return Math.mulDiv(redeemBasePrice, cap, threshold);
     }
 
     /// @notice Keeper records the current market cap into the history that
     /// prices redemptions. No-op when the last checkpoint is younger than
-    /// CHECKPOINT_GAP; reverts NotAboveThreshold never (a checkpoint is a
-    /// sample, not a crossing).
+    /// CHECKPOINT_GAP; reverts CheckpointAboveBound for samples claiming far
+    /// more cap than the ladder supports, so a pumped or corrupted oracle
+    /// read never poisons redemption pricing.
     function checkpointCap() external onlyKeeper {
         uint256 mc = oracle.marketCap();
+        if (mc > type(uint128).max) revert CapOverflow();
+
         uint256 n = _capPointCount;
         if (n > 0 && block.timestamp - _capPoints[(n - 1) % CAP_HISTORY].at < CHECKPOINT_GAP) {
             return;
         }
+
+        uint256 idx = _peekNextIndex();
+        uint256 bound;
+        if (idx != type(uint256).max) {
+            bound = _milestones[idx].marketCap * CHECKPOINT_CAP_SLACK;
+        } else if (n > 0) {
+            bound = uint256(_capPoints[(n - 1) % CAP_HISTORY].cap) * CHECKPOINT_CAP_SLACK;
+        } else {
+            bound = _milestones[_milestones.length - 1].marketCap * CHECKPOINT_CAP_SLACK;
+        }
+        if (mc > bound) revert CheckpointAboveBound();
+
         _capPoints[n % CAP_HISTORY] = CapPoint(uint128(block.timestamp), uint128(mc));
         _capPointCount = n + 1;
         emit CapCheckpointed(mc, block.timestamp);
@@ -235,9 +279,10 @@ contract MilestoneCards is ERC721, ERC2981, Ownable, Pausable {
 
     /// @notice Sell a card back to the protocol for its chart value, paid
     /// from the redemption pool. The card burns, keeping the collection
-    /// scarce. Checks-effects-interactions: the burn settles before the ETH
-    /// leaves, so reentry can only redeem other cards legitimately.
-    function redeem(uint256 tokenId) external whenNotPaused {
+    /// scarce. Checks-effects-interactions with a nonReentrant payout: the
+    /// burn settles before the ETH leaves, and reentry attempts revert
+    /// outright instead of being trusted to stay legitimate.
+    function redeem(uint256 tokenId) external whenNotPaused nonReentrant {
         if (ownerOf(tokenId) != msg.sender) revert NotCardHolder();
 
         uint256 price = chartPriceOf(tokenId);
@@ -322,12 +367,14 @@ contract MilestoneCards is ERC721, ERC2981, Ownable, Pausable {
     }
 
     function setConfirmWindow(uint256 seconds_) external onlyOwner {
+        if (seconds_ != 0 && seconds_ < MIN_CONFIRM_WINDOW) revert ConfirmWindowTooShort();
         confirmWindow = seconds_;
         emit ConfirmWindowUpdated(seconds_);
     }
 
     function setRedeemBasePrice(uint256 basePrice_) external onlyOwner {
         if (basePrice_ == 0) revert InvalidAddress();
+        if (basePrice_ > redeemBasePrice * MAX_PRICE_STEP) revert PriceStepTooLarge();
         redeemBasePrice = basePrice_;
         emit RedeemBasePriceUpdated(basePrice_);
     }

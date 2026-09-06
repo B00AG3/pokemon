@@ -9,6 +9,13 @@ contract MockAggregator is AggregatorV3Interface {
     int256 public price = 3000e8;
     uint256 public updatedAtTime = block.timestamp;
 
+    error MainnetForbidden();
+
+    modifier notOnMainnet() {
+        if (block.chainid == 4663) revert MainnetForbidden();
+        _;
+    }
+
     function decimals() external pure returns (uint8) {
         return 8;
     }
@@ -33,11 +40,11 @@ contract MockAggregator is AggregatorV3Interface {
         return (1, price, updatedAtTime, updatedAtTime, 1);
     }
 
-    function setPrice(int256 price_) external {
+    function setPrice(int256 price_) external notOnMainnet {
         price = price_;
     }
 
-    function setUpdatedAt(uint256 time_) external {
+    function setUpdatedAt(uint256 time_) external notOnMainnet {
         updatedAtTime = time_;
     }
 }

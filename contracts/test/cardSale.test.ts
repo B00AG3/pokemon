@@ -12,7 +12,10 @@ describe('CardSale', () => {
       await ethers.getContractFactory('MockMilestonePriceOracle')
     ).deploy();
     const token = await (await ethers.getContractFactory('PokeCardToken')).deploy(owner.address);
-    const thresholds = [5000n * ONE, 10_000n * ONE];
+    // the top rung sits far above the traded range, mirroring production:
+    // the checkpoint bound is relative to the next threshold, so pricing
+    // toward a distant rung (the 200x story below) must stay reachable
+    const thresholds = [5000n * ONE, 1_000_000n * ONE];
     const cards = await (
       await ethers.getContractFactory('MilestoneCards')
     ).deploy(

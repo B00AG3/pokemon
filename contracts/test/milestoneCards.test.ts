@@ -102,6 +102,77 @@ describe('MilestoneCards', () => {
     );
   });
 
+  it('keeper ops no longer accept the owner as a shortcut', async () => {
+    const { oracle, cards, owner } = await loadFixture(deployFixture);
+    await oracle.setMarketCap(5000n * ONE);
+    await expect(cards.connect(owner).mintNext()).to.be.revertedWithCustomError(
+      cards,
+      'NotKeeper',
+    );
+    await expect(cards.connect(owner).confirmCrossing()).to.be.revertedWithCustomError(
+      cards,
+      'NotKeeper',
+    );
+    await expect(cards.connect(owner).checkpointCap()).to.be.revertedWithCustomError(
+      cards,
+      'NotKeeper',
+    );
+  });
+
+  it('refuses to checkpoint a pumped cap far above the ladder', async () => {
+    const { oracle, cards, keeper } = await loadFixture(deployFixture);
+    // 200x the next threshold: exactly what a spot-pump would try to record
+    await oracle.setMarketCap(1_000_000n * ONE);
+    await expect(cards.connect(keeper).checkpointCap()).to.be.revertedWithCustomError(
+      cards,
+      'CheckpointAboveBound',
+    );
+    expect(await cards.agedMarketCap()).to.equal(0n);
+
+    // a cap inside the bound still records, and a declining cap never will
+    // trip the guard (the bound is an upper edge, not a growth floor)
+    await oracle.setMarketCap(9_000n * ONE);
+    await cards.connect(keeper).checkpointCap();
+    await oracle.setMarketCap(1000n * ONE);
+    await time.increase(15n * 60n + 1n);
+    await cards.connect(keeper).checkpointCap();
+  });
+
+  it('post-ladder checkpoints may at most double the previous sample', async () => {
+    const { oracle, cards, keeper } = await loadFixture(deployFixture);
+    for (const level of [5000n, 10_000n, 25_000n]) {
+      await oracle.setMarketCap(level * ONE);
+      await cards.connect(keeper).mintNext();
+    }
+    // first post-ladder sample is bounded by the top threshold x slack
+    await oracle.setMarketCap(60_000n * ONE);
+    await expect(cards.connect(keeper).checkpointCap()).to.be.revertedWithCustomError(
+      cards,
+      'CheckpointAboveBound',
+    );
+    await oracle.setMarketCap(45_000n * ONE);
+    await cards.connect(keeper).checkpointCap();
+
+    // afterwards each accepted sample lifts the bound to 2x itself, so real
+    // growth keeps pricing while one spiked sample cannot leap past it
+    await time.increase(15n * 60n + 1n);
+    await oracle.setMarketCap(90_000n * ONE);
+    await cards.connect(keeper).checkpointCap();
+    await time.increase(15n * 60n + 1n);
+    await oracle.setMarketCap(300_000n * ONE);
+    await expect(cards.connect(keeper).checkpointCap()).to.be.revertedWithCustomError(
+      cards,
+      'CheckpointAboveBound',
+    );
+  });
+
+  it('withdrawPool emits for monitoring', async () => {
+    const { cards, owner } = await loadFixture(deployFixture);
+    await expect(cards.connect(owner).withdrawPool(owner.address, 1n))
+      .to.emit(cards, 'PoolWithdrawn')
+      .withArgs(owner.address, 1n);
+  });
+
   it('pauses minting as an emergency stop and unpauses to restore', async () => {
     const { oracle, cards, keeper, alice } = await loadFixture(deployFixture);
     await oracle.setMarketCap(5000n * ONE);
@@ -279,7 +350,7 @@ describe('MilestoneCards', () => {
       // drain the pool: redemption reverts until it is funded again
       const pool: bigint = await ethers.provider.getBalance(await cards.getAddress());
       await cards.withdrawPool(owner.address, pool);
-      await seedAgedCap(oracle, cards, keeper, 50_000n * ONE, time);
+      await seedAgedCap(oracle, cards, keeper, 15_000n * ONE, time);
       await expect(cards.connect(owner).redeem(1n)).to.be.revertedWithCustomError(
         cards,
         'InsufficientPool',
@@ -290,6 +361,32 @@ describe('MilestoneCards', () => {
       await cards.connect(owner).redeem(1n);
       expect(await cards.totalMinted()).to.equal(1n);
       await expect(cards.ownerOf(1n)).to.be.revertedWithCustomError(cards, 'ERC721NonexistentToken');
+    });
+
+    it('redeem is nonReentrant: a payout that reenters redeem reverts', async () => {
+      const { oracle, token, cards, keeper, alice } = await loadFixture(deployFixture);
+      await token.transfer(alice.address, 100n * ONE);
+      await cards.connect(alice).enterDraw();
+      await oracle.setMarketCap(5000n * ONE);
+      await cards.connect(keeper).mintNext(); // card 1 -> alice
+      await oracle.setMarketCap(10_000n * ONE);
+      await cards.connect(keeper).mintNext(); // card 2 -> alice (sole entrant)
+      expect(await cards.balanceOf(alice.address)).to.equal(2n);
+
+      const redeemer = await (
+        await ethers.getContractFactory('ReentrantRedeemer')
+      ).deploy(await cards.getAddress());
+      await cards.connect(alice).transferFrom(alice.address, await redeemer.getAddress(), 1n);
+      await cards.connect(alice).transferFrom(alice.address, await redeemer.getAddress(), 2n);
+
+      await seedAgedCap(oracle, cards, keeper, 10_000n * ONE, time);
+
+      // the payout reenters redeem(2); without the guard that inner redeem
+      // would succeed mid-payout, so this only passes with nonReentrant
+      await expect(redeemer.attack(1n)).to.be.revertedWith('outer redeem failed');
+      // the whole redeem reverted: both cards are untouched
+      expect(await cards.ownerOf(1n)).to.equal(await redeemer.getAddress());
+      expect(await cards.ownerOf(2n)).to.equal(await redeemer.getAddress());
     });
   });
 

@@ -58,6 +58,18 @@ async function main() {
   const eth = (v: bigint) => `${Number(ethers.formatEther(v)).toFixed(6)} ETH`;
   const ONE = 10n ** 18n;
 
+  // Live networks produce blocks on their own, so sleeping ages chain time.
+  // The local hardhat network only moves time when told to, which would leave
+  // checkpoints unaged forever - advance it explicitly instead.
+  const age = async (seconds: number) => {
+    if (network.name === 'hardhat' || network.name === 'localhost') {
+      await ethers.provider.send('evm_increaseTime', [seconds]);
+      await ethers.provider.send('evm_mine', []);
+    } else {
+      await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+    }
+  };
+
   // fund the user: gas money plus enough POKE to enter the draw
   await (await treasury.sendTransaction({ to: user.address, value: ethers.parseEther('0.005') })).wait();
   await (await token.transfer(user.address, 1000n * ONE)).wait();
@@ -132,7 +144,7 @@ async function main() {
   await (await treasury.sendTransaction({ to: cardsAddress, value: ethers.parseEther('0.05') })).wait();
   await (await cards.connect(treasury).checkpointCap()).wait();
   console.log('7a. pool funded with 0.05 ETH, cap checkpoint recorded; aging 65s');
-  await new Promise((resolve) => setTimeout(resolve, 65_000));
+  await age(65);
   const poolBefore = await ethers.provider.getBalance(cardsAddress);
   const expected = await cards.chartPriceOf(3n); // at its own launch cap: the base price
   if (expected !== redeemBase) throw new Error(`chart price mismatch: got ${expected}, want ${redeemBase}`);

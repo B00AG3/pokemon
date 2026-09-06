@@ -11,6 +11,7 @@
     "fund:pool": "hardhat run scripts/fund-pool.ts --network robinhoodMainnet",
     "keeper": "ts-node scripts/keeper.ts",
     "launch:pons": "ts-node scripts/launch-pons.ts",
+    "launch:cards": "hardhat run scripts/launch-cards.ts --network robinhoodMainnet",
     "fees:keeper": "ts-node scripts/point-fees-at-keeper.ts",
     "watch:cap": "ts-node scripts/watch-cap.ts",
     "metadata": "ts-node scripts/generate-metadata.ts"

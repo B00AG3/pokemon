@@ -88,8 +88,8 @@ export default function MarketSection() {
       <span className="status-dot animate-pulse" aria-hidden />
       <span>
         {live
-          ? `cap $${market.marketCap.toLocaleString('en-US')} - POKE ${formatPokePrice(pokeUsdPrice(market.marketCap))}`
-          : `cap $${market.marketCap.toLocaleString('en-US')} - POKE ${formatPokePrice(pokeUsdPrice(market.marketCap))} (sim)`}
+          ? `cap $${market.marketCap.toLocaleString('en-US')} - POKEDROP ${formatPokePrice(pokeUsdPrice(market.marketCap))}`
+          : `cap $${market.marketCap.toLocaleString('en-US')} - POKEDROP ${formatPokePrice(pokeUsdPrice(market.marketCap))} (sim)`}
       </span>
       {!live && <span className="chip chip-neutral">Demo</span>}
     </div>
@@ -119,7 +119,7 @@ export default function MarketSection() {
             The market opens at launch.
           </p>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/55">
-            When POKE goes live, the ladder starts moving the same moment:{' '}
+            When POKEDROP goes live, the ladder starts moving the same moment:{' '}
             {LADDER_TCG_IDS.length} cards, the first airdropping free at $
             {LADDER_USD[0].toLocaleString('en-US')} market cap and one more
             every $
@@ -148,7 +148,7 @@ export default function MarketSection() {
       )}
       {live && !market.isGuest && !market.live.chainOk && (
         <div className="panel mb-6 flex flex-wrap items-center justify-between gap-3 border-amber-400/30 px-5 py-3 font-mono text-xs text-amber-400/90">
-          <span>wrong network - POKE and the cards live on Robinhood Chain</span>
+          <span>wrong network - POKEDROP and the cards live on Robinhood Chain</span>
           <button type="button" className="btn btn-ghost btn-sm" onClick={market.switchChain}>
             Switch network
           </button>
@@ -344,7 +344,7 @@ export default function MarketSection() {
 
 /**
  * The open draw for the next ladder slot: art, entry state, and the one
- * rule that matters - hold POKE when the cap crosses.
+ * rule that matters - hold POKEDROP when the cap crosses.
  */
 function DrawTile({ onEnter }: { onEnter: () => Promise<void> }) {
   const market = useMarket();
@@ -405,7 +405,7 @@ function DrawTile({ onEnter }: { onEnter: () => Promise<void> }) {
           </button>
         )}
         <p className="mt-2 font-mono text-[10px] leading-relaxed text-white/45">
-          one entry per wallet - winners must still hold POKE when the cap
+          one entry per wallet - winners must still hold POKEDROP when the cap
           crosses
         </p>
       </div>

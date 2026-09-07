@@ -406,7 +406,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
                 Every milestone airdrops a real Pokemon card.
               </h1>
               <p className="mt-4 text-[13px] leading-relaxed text-white/60">
-                POKE launches on the Robinhood Chain. At each market-cap
+                POKEDROP launches on the Robinhood Chain. At each market-cap
                 milestone, the contract airdrops one real card to a drawn
                 holder - free, exactly once.
               </p>
@@ -418,7 +418,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
                   Buy, sell, trade
                 </h2>
                 <span className="font-mono text-[10px] text-white/40 sm:text-[11px]">
-                  market cap $5,688 - POKE $0.0000
+                  market cap $5,688 - POKEDROP $0.0000
                 </span>
               </div>
 
@@ -548,7 +548,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
             <div className="w-full max-w-[620px] rounded-[4px] border border-white/[0.09] bg-[#0d0d0f] p-3 lg:min-w-0 lg:flex-1 lg:p-4">
               <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-2">
                 <span className="font-mono text-[10px] tracking-[0.08em] text-white/40">
-                  POKE market cap - Robinhood Chain
+                  POKEDROP market cap - Robinhood Chain
                 </span>
                 <span className="font-mono text-sm text-[#f2f2f0]" ref={mcValueRef}>
                   {reduced ? usd(finalShown) : '$5,000'}
@@ -564,7 +564,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
                   aspectRatio: `${CHART_W} / ${CHART_H}`,
                 }}
                 role="img"
-                aria-label="POKE market cap chart"
+                aria-label="POKEDROP market cap chart"
               >
                 <defs>
                   <clipPath id="introCandleClip">

@@ -7,7 +7,7 @@ const LINKS = [
   { to: '/portfolio', label: 'Portfolio' },
   { to: '/activity', label: 'Activity' },
   { to: '/roadmap', label: 'Roadmap' },
-  { to: '/token', label: 'Get POKE' },
+  { to: '/token', label: 'Get POKEDROP' },
 ];
 
 function PokeballMark({ className }: { className?: string }) {

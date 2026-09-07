@@ -74,7 +74,7 @@ export default function Portfolio() {
       )}
       {live && !market.isGuest && !market.live.chainOk && (
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-[4px] border border-amber-400/30 bg-amber-400/5 px-5 py-3 font-mono text-xs text-amber-400/90">
-          <span>wrong network - POKE and the cards live on Robinhood Chain</span>
+          <span>wrong network - POKEDROP and the cards live on Robinhood Chain</span>
           <button type="button" className="btn btn-ghost btn-sm" onClick={market.switchChain}>
             Switch network
           </button>
@@ -89,7 +89,7 @@ export default function Portfolio() {
       )}
       {prelaunch && (
         <div className="mb-6 rounded-[4px] border border-white/10 bg-white/[0.03] px-5 py-3 font-mono text-xs text-white/55">
-          the portfolio opens at launch - the first cards airdrop free to POKE
+          the portfolio opens at launch - the first cards airdrop free to POKEDROP
           holders
         </div>
       )}
@@ -163,7 +163,7 @@ export default function Portfolio() {
             <>
               <p className="text-sm text-white/60">
                 Nothing here yet - the ladder opens at launch and the first
-                cards airdrop free to POKE holders.
+                cards airdrop free to POKEDROP holders.
               </p>
               <Link to="/roadmap" className="btn btn-primary mt-5">
                 See the roadmap
@@ -173,7 +173,7 @@ export default function Portfolio() {
             <>
               <p className="text-sm text-white/60">
                 Nothing here yet. Enter the draw on the market page and hold
-                POKE - winning cards arrive free.
+                POKEDROP - winning cards arrive free.
               </p>
               <Link to="/" className="btn btn-primary mt-5">
                 Enter the draw

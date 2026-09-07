@@ -114,7 +114,7 @@ export default function Roadmap() {
 
       <p className="mt-6 max-w-2xl text-sm leading-relaxed text-white/55">
         Every card airdrops free to a drawn holder - the only ticket is
-        holding POKE when the cap crosses. From there cards sell holder to
+        holding POKEDROP when the cap crosses. From there cards sell holder to
         holder, with the chart as the reference: at a {formatUsd(LADDER_USD[LADDER_USD.length - 1])}{' '}
         cap, a card from the {formatUsd(LADDER_USD[0])} milestone references{' '}
         {LADDER_USD[LADDER_USD.length - 1] / LADDER_USD[0]}x its base price.

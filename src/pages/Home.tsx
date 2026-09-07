@@ -13,7 +13,7 @@ const HOW_IT_WORKS = [
   {
     step: '01',
     title: 'Launch',
-    body: 'One billion POKE goes live on the Robinhood Chain. The market cap does the rest.',
+    body: 'One billion POKEDROP goes live on the Robinhood Chain. The market cap does the rest.',
   },
   {
     step: '02',
@@ -71,15 +71,15 @@ export default function Home({
             style={{ animationDelay: '260ms' }}
           >
             {prelaunch
-              ? `POKE launches on the Robinhood Chain, and the ladder opens at launch: ${LADDER_TCG_IDS.length} cards, the first airdropping free at $${LADDER_USD[0].toLocaleString('en-US')} market cap and one more every $10,000 after. Hold, and the collection comes to you.`
-              : 'POKE launches on the Robinhood Chain. At each market-cap milestone, the contract airdrops one real card to a drawn holder - free, exactly once. Hold, and the collection comes to you.'}
+              ? `POKEDROP launches on the Robinhood Chain, and the ladder opens at launch: ${LADDER_TCG_IDS.length} cards, the first airdropping free at $${LADDER_USD[0].toLocaleString('en-US')} market cap and one more every $10,000 after. Hold, and the collection comes to you.`
+              : 'POKEDROP launches on the Robinhood Chain. At each market-cap milestone, the contract airdrops one real card to a drawn holder - free, exactly once. Hold, and the collection comes to you.'}
           </p>
           <div
             className="rise mt-8 flex flex-wrap gap-3"
             style={{ animationDelay: '380ms' }}
           >
             <Link to="/token" className="btn btn-primary">
-              Get POKE
+              Get POKEDROP
             </Link>
             <Link to="/roadmap" className="btn btn-ghost">
               See the roadmap
@@ -127,7 +127,7 @@ export default function Home({
               </p>
               <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/55">
                 Every milestone card airdrops to a drawn wallet - no sale, no
-                mint price, nothing to snipe. The only ticket is holding POKE
+                mint price, nothing to snipe. The only ticket is holding POKEDROP
                 when the cap crosses. After that, cards sell holder to holder
                 at whatever the market pays.
               </p>
@@ -143,7 +143,7 @@ export default function Home({
                 <dt className="font-mono text-[10px] tracking-[0.08em] text-white/40">
                   the ticket
                 </dt>
-                <dd className="mt-2 font-mono text-lg text-white">hold POKE</dd>
+                <dd className="mt-2 font-mono text-lg text-white">hold POKEDROP</dd>
               </div>
               <div>
                 <dt className="font-mono text-[10px] tracking-[0.08em] text-white/40">

@@ -8,13 +8,13 @@ const SUPPLY = 1_000_000_000;
 const STEPS = [
   {
     step: '01',
-    title: 'Get POKE',
-    body: 'Bridge or buy ETH on the Robinhood Chain, then swap for POKE in the launch pool. Every swap moves the cap.',
+    title: 'Get POKEDROP',
+    body: 'Bridge or buy ETH on the Robinhood Chain, then swap for POKEDROP in the launch pool. Every swap moves the cap.',
   },
   {
     step: '02',
     title: 'Enter the draw',
-    body: 'Holding POKE is the only ticket. Enter once from the market page; the draw re-checks your balance at every crossing.',
+    body: 'Holding POKEDROP is the only ticket. Enter once from the market page; the draw re-checks your balance at every crossing.',
   },
   {
     step: '03',
@@ -85,7 +85,7 @@ export default function TokenPage() {
           type: 'ERC20',
           options: {
             address: CONTRACTS.token,
-            symbol: 'POKE',
+            symbol: 'POKEDROP',
             decimals: 18,
           },
         },
@@ -100,11 +100,11 @@ export default function TokenPage() {
     <section className="pb-16">
       <div className="mb-8">
         <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-          Get POKE
+          Get POKEDROP
         </h1>
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/60">
-          One billion POKE, fixed supply. The cap drives the milestone
-          airdrops, and holding POKE is the only ticket in the draw.
+          One billion POKEDROP, fixed supply. The cap drives the milestone
+          airdrops, and holding POKEDROP is the only ticket in the draw.
         </p>
       </div>
 
@@ -116,7 +116,7 @@ export default function TokenPage() {
           </div>
           <div className="sm:border-l sm:border-white/10 sm:pl-10">
             <p className="font-mono text-[11px] text-white/40">symbol</p>
-            <p className="mt-1.5 font-mono text-sm">POKE</p>
+            <p className="mt-1.5 font-mono text-sm">POKEDROP</p>
           </div>
           <div className="sm:border-l sm:border-white/10 sm:pl-10">
             <p className="font-mono text-[11px] text-white/40">supply</p>
@@ -136,7 +136,7 @@ export default function TokenPage() {
               rel="noreferrer"
               className="btn btn-primary"
             >
-              Buy POKE on the DEX
+              Buy POKEDROP on the DEX
             </a>
           ) : (
             <button
@@ -145,7 +145,7 @@ export default function TokenPage() {
               disabled
               title="The launch pool link goes live with the token"
             >
-              Buy POKE - pool opens at launch
+              Buy POKEDROP - pool opens at launch
             </button>
           )}
           {CONTRACTS.token && walletClient && (
@@ -154,7 +154,7 @@ export default function TokenPage() {
               className="btn btn-ghost"
               onClick={() => void addToWallet()}
             >
-              {added ? 'Added' : 'Add POKE to wallet'}
+              {added ? 'Added' : 'Add POKEDROP to wallet'}
             </button>
           )}
         </div>
@@ -181,7 +181,7 @@ export default function TokenPage() {
         Contracts
       </h2>
       <div className="panel mt-4 px-5 py-1.5">
-        <AddressRow label="POKE token (ERC-20)" address={CONTRACTS.token} />
+        <AddressRow label="POKEDROP token (ERC-20)" address={CONTRACTS.token} />
         <AddressRow label="Milestone cards + airdrop draw (ERC-721)" address={CONTRACTS.cards} />
         <AddressRow label="Treasury fallback sale (CardSale)" address={CONTRACTS.sale} />
         <AddressRow label="Peer-to-peer swaps (CardSwap)" address={CONTRACTS.swap} />

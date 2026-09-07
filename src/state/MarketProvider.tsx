@@ -321,7 +321,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
       enter: async () => {
         try {
           await writes.enterDraw();
-          done('You are in the draw - hold POKE to stay eligible');
+          done('You are in the draw - hold POKEDROP to stay eligible');
         } catch {
           /* txError carries the failure */
         }

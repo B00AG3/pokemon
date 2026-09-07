@@ -8,25 +8,28 @@ import {
 } from '../constants/ladder';
 
 /**
- * Ladder arithmetic for the 30-rung launch: the first rung mines at $20,000
- * and every following rung at a $10,000 interval, so rung i (1-based) sits at
- * 20000 + (i - 1) * 10000 and the ladder tops out at $310,000.
+ * Ladder arithmetic for the 30-rung launch: card #01 mines the moment the
+ * token is live (rung 1 sits below the spawn cap), rungs 2-30 climb from
+ * $10,000 in $10,000 steps, and the ladder tops out at $290,000.
  */
 const RUNG_COUNT = 30;
-const FIRST_RUNG_USD = 20_000;
+const FIRST_RUNG_USD = 4_000;
+const STAIRCASE_START_USD = 10_000;
 const RUNG_STEP_USD = 10_000;
-const LAST_RUNG_USD = FIRST_RUNG_USD + (RUNG_COUNT - 1) * RUNG_STEP_USD;
+const LAST_RUNG_USD = STAIRCASE_START_USD + (RUNG_COUNT - 2) * RUNG_STEP_USD;
+
+function expectedRung(i: number): number {
+  return i === 0 ? FIRST_RUNG_USD : STAIRCASE_START_USD + (i - 1) * RUNG_STEP_USD;
+}
 
 describe('LADDER_USD', () => {
   it('has exactly 30 rungs', () => {
     expect(LADDER_USD).toHaveLength(RUNG_COUNT);
   });
 
-  it('starts at $20,000 and steps by exactly $10,000 per rung', () => {
+  it('starts at $4,000, then steps $10,000 per rung from $10,000', () => {
     LADDER_USD.forEach((usd, i) => {
-      expect(usd, `rung ${i + 1} should be ${FIRST_RUNG_USD + i * RUNG_STEP_USD}`).toBe(
-        FIRST_RUNG_USD + i * RUNG_STEP_USD,
-      );
+      expect(usd, `rung ${i + 1} should be ${expectedRung(i)}`).toBe(expectedRung(i));
     });
   });
 
@@ -57,7 +60,7 @@ describe('MILESTONES', () => {
     expect(MILESTONES).toHaveLength(RUNG_COUNT);
     MILESTONES.forEach((slot, i) => {
       expect(slot.index).toBe(i + 1);
-      expect(slot.usd).toBe(FIRST_RUNG_USD + i * RUNG_STEP_USD);
+      expect(slot.usd).toBe(expectedRung(i));
       expect(slot.tcgId).toBe(LADDER_TCG_IDS[i]);
       expect(slot.tcgId).not.toBeNull();
     });
@@ -74,7 +77,7 @@ describe('tcgIdForRung', () => {
 
 describe('formatUsd', () => {
   it('renders USD amounts with en-US grouping', () => {
-    expect(formatUsd(FIRST_RUNG_USD)).toBe('$20,000');
-    expect(formatUsd(LAST_RUNG_USD)).toBe('$310,000');
+    expect(formatUsd(FIRST_RUNG_USD)).toBe('$4,000');
+    expect(formatUsd(LAST_RUNG_USD)).toBe('$290,000');
   });
 });

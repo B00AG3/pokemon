@@ -3,7 +3,7 @@
  *
  * THRESHOLDS is a comma-separated list of whole USD market-cap milestones,
  * low to high. The launch ladder of record is 30 rungs: $20,000 for the first
- * card, then +$10,000 per rung up to $310,000 (PROMPT 1 of the launch run).
+ * card (instantly, below the spawn cap), then +$10,000 per rung up to $290,000.
  *
  * Values are returned scaled by 1e18 (USD with 18 decimals), the unit the
  * MilestoneCards oracle comparisons expect.
@@ -12,10 +12,10 @@
 /** Number of cards on the launch ladder (one card per rung). */
 export const LADDER_RUNG_COUNT = 30;
 
-/** The 30-rung launch ladder as a THRESHOLDS string: 20000,30000,...,310000. */
+/** The 30-rung launch ladder as a THRESHOLDS string: 4000,10000,20000,...,290000. */
 export const DEFAULT_THRESHOLDS: string = Array.from(
   { length: LADDER_RUNG_COUNT },
-  (_, i) => 20000 + i * 10000,
+  (_, i) => (i === 0 ? 4000 : 10000 + (i - 1) * 10000),
 ).join(',');
 
 const USD_SCALE = 10n ** 18n;

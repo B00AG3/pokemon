@@ -22,7 +22,7 @@ import * as path from 'node:path';
 
 const API = 'https://api.tcgdex.net/v2/en/cards';
 // Mirrors src/constants/ladder.ts: rungs 1-30, $20,000 first and +$10,000
-// per rung up to $310,000, ids in LADDER_TCG_IDS order.
+// per rung up to $290,000, ids in LADDER_TCG_IDS order.
 const DEFAULT_CARDS =
   'base1-4,base1-2,base1-1,base1-6,base1-15,base1-3,base1-5,base1-7,base1-8,' +
   'base1-9,base1-10,base1-11,base1-12,base1-13,base1-14,base1-16,base2-1,' +
@@ -30,7 +30,7 @@ const DEFAULT_CARDS =
   'base2-11,base2-12,base2-13,base2-14';
 const DEFAULT_THRESHOLDS = Array.from(
   { length: 30 },
-  (_, i) => 20000 + i * 10000,
+  (_, i) => (i === 0 ? 4000 : 10000 + (i - 1) * 10000),
 ).join(',');
 
 const cards = (process.env.MILESTONE_CARDS ?? DEFAULT_CARDS)

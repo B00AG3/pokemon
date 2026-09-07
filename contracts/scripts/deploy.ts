@@ -44,7 +44,7 @@ async function main() {
     throw new Error('MOCK_ORACLE=1 (or no oracle config) is not allowed on robinhoodMainnet');
   }
 
-  // Defaults to the 30-rung launch ladder (20000,30000,...,310000); the shared
+  // Defaults to the 30-rung launch ladder (4000,10000,20000,...,290000); the shared
   // parser rejects malformed, nonpositive, or non-ascending values up front.
   const thresholds = parseThresholds(process.env.THRESHOLDS ?? DEFAULT_THRESHOLDS);
   const confirmWindow = BigInt(process.env.CONFIRM_WINDOW ?? '3600');

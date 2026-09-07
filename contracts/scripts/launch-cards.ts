@@ -41,7 +41,7 @@ import { DEFAULT_THRESHOLDS, LADDER_RUNG_COUNT, parseThresholds } from './thresh
  *
  * Real values come from contracts/.env (THRESHOLDS, CONFIRM_WINDOW,
  * REDEEM_DELAY, REDEEM_BASE_PRICE_WEI) and default sanely when absent:
- * the 30-rung ladder 20000,30000,...,310000 / 3600s / 21600s / 0.01 ETH.
+ * the 30-rung ladder 4000,10000,20000,...,290000 / 60s / 21600s / 0.01 ETH.
  * THRESHOLDS must hold exactly 30 strictly ascending values - the site
  * ladder serves exactly 30 cards, one per rung.
  *

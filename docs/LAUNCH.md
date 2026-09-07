@@ -137,7 +137,7 @@ deployer key in contracts/.env (gitignored) and use a burner wallet.
 ## 0. Decisions to lock before touching mainnet
 
 - [ ] Milestone ladder + confirm window (the 30-rung ladder - $20,000 first
-      card, +$10,000 per rung up to $310,000 - is the default everywhere;
+      card (instant, below the spawn cap), +$10,000 per rung up to $290,000 - is the default everywhere;
       confirm window in hours, not the testnet 60s)
 - [ ] Redemption base price (`REDEEM_BASE_PRICE_WEI`; 0.01 ETH default) and
       redeem delay (`REDEEM_DELAY`; 21600s = 6h default). Chart values and the

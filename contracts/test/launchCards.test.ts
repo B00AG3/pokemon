@@ -11,19 +11,19 @@ import {
 const ONE_USD = 10n ** 18n;
 
 describe('threshold parser', () => {
-  it('defaults to the 30-rung ladder string 20000,30000,...,310000', () => {
+  it('defaults to the 30-rung ladder string 4000,10000,20000,...,290000', () => {
     const parts = DEFAULT_THRESHOLDS.split(',');
     expect(parts).to.have.length(LADDER_RUNG_COUNT);
     expect(LADDER_RUNG_COUNT).to.equal(30);
-    expect(parts[0]).to.equal('20000');
-    expect(parts[parts.length - 1]).to.equal('310000');
+    expect(parts[0]).to.equal('4000');
+    expect(parts[parts.length - 1]).to.equal('290000');
   });
 
   it('turns the 30-value string into 30 strictly ascending USD-wei thresholds', () => {
     const values = parseThresholds(DEFAULT_THRESHOLDS, { expectedCount: LADDER_RUNG_COUNT });
     expect(values).to.have.length(30);
-    expect(values[0]).to.equal(20000n * ONE_USD);
-    expect(values[29]).to.equal(310000n * ONE_USD);
+    expect(values[0]).to.equal(4000n * ONE_USD);
+    expect(values[29]).to.equal(290000n * ONE_USD);
     for (let i = 1; i < values.length; i++) {
       expect(values[i], `rung ${i} must exceed rung ${i - 1}`).to.be.greaterThan(values[i - 1]);
     }
@@ -32,7 +32,8 @@ describe('threshold parser', () => {
   it('keeps the +10000 spacing of the launch ladder', () => {
     const values = parseThresholds(DEFAULT_THRESHOLDS);
     for (let i = 0; i < values.length; i++) {
-      expect(values[i]).to.equal(BigInt(20000 + i * 10000) * ONE_USD);
+      const usd = i === 0 ? 4000 : 10000 + (i - 1) * 10000;
+      expect(values[i]).to.equal(BigInt(usd) * ONE_USD);
     }
   });
 
@@ -41,7 +42,7 @@ describe('threshold parser', () => {
     expect(() => parseThresholds(oneShort, { expectedCount: LADDER_RUNG_COUNT })).to.throw(
       /exactly 30/,
     );
-    const oneLong = DEFAULT_THRESHOLDS + ',320000';
+    const oneLong = DEFAULT_THRESHOLDS + ',300000';
     expect(() => parseThresholds(oneLong, { expectedCount: LADDER_RUNG_COUNT })).to.throw(
       /exactly 30/,
     );
@@ -123,8 +124,8 @@ describe('local deploy with the 30-rung THRESHOLDS', () => {
       MOCK_ORACLE: '',
     });
     expect(record.thresholds).to.have.length(30);
-    expect(record.thresholds[0]).to.equal((20000n * ONE_USD).toString());
-    expect(record.thresholds[29]).to.equal((310000n * ONE_USD).toString());
+    expect(record.thresholds[0]).to.equal((4000n * ONE_USD).toString());
+    expect(record.thresholds[29]).to.equal((290000n * ONE_USD).toString());
     const cards = await ethers.getContractAt('MilestoneCards', record.cards);
     expect(await cards.totalMilestones()).to.equal(30n);
   });

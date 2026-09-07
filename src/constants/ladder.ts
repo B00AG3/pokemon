@@ -2,8 +2,9 @@
  * The milestone ladder shared by the roadmap, market, and contracts. Index 1
  * is card #01. TCG ids come from contracts/scripts/generate-metadata.ts so
  * the site artwork matches the on-chain metadata. The launch ladder is 30
- * rungs: the first card mines at $20,000 and every following rung adds
- * $10,000 of market cap, topping out at $310,000.
+ * rungs: card #01 mines the moment the token is live (its $4,000 rung sits
+ * below the ~$5,040 spawn cap), then one card every $10,000 of market cap
+ * from $10,000 up, topping out at $290,000.
  */
 export interface MilestoneSlot {
   index: number;
@@ -12,13 +13,17 @@ export interface MilestoneSlot {
 }
 
 export const RUNG_COUNT = 30;
-export const FIRST_RUNG_USD = 20_000;
+/** Card #01's rung: deliberately below the ~$5,040 spawn cap for an instant first mint. */
+export const FIRST_RUNG_USD = 4_000;
+/** Rungs 2-30 climb from $10,000 in $10,000 steps. */
 export const RUNG_STEP_USD = 10_000;
+/** First rung of the regular $10,000 staircase (card #02). */
+export const STAIRCASE_START_USD = 10_000;
 
-export const LADDER_USD: number[] = Array.from(
-  { length: RUNG_COUNT },
-  (_, i) => FIRST_RUNG_USD + i * RUNG_STEP_USD,
-);
+export const LADDER_USD: number[] = [
+  FIRST_RUNG_USD,
+  ...Array.from({ length: RUNG_COUNT - 1 }, (_, i) => STAIRCASE_START_USD + i * RUNG_STEP_USD),
+];
 
 /**
  * Ordered 1999 Base Set and Jungle holos, one per rung. Rungs 1-5 keep the

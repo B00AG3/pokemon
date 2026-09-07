@@ -71,7 +71,7 @@ export default function Home({
             style={{ animationDelay: '260ms' }}
           >
             {prelaunch
-              ? `POKEDROP launches on the Robinhood Chain, and the ladder opens at launch: ${LADDER_TCG_IDS.length} cards, the first airdropping free at $${LADDER_USD[0].toLocaleString('en-US')} market cap and one more every $10,000 after. Hold, and the collection comes to you.`
+              ? `POKEDROP is coming to the Robinhood Chain: ${LADDER_TCG_IDS.length} cards, the first airdropping free at $${LADDER_USD[0].toLocaleString('en-US')} market cap and one more every $10,000 after. Hold, and the collection comes to you.`
               : 'POKEDROP launches on the Robinhood Chain. At each market-cap milestone, the contract airdrops one real card to a drawn holder - free, exactly once. Hold, and the collection comes to you.'}
           </p>
           <div

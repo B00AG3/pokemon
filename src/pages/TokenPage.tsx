@@ -145,7 +145,7 @@ export default function TokenPage() {
               disabled
               title="The launch pool link goes live with the token"
             >
-              Buy POKEDROP - pool opens at launch
+              Buy POKEDROP - pool goes live soon
             </button>
           )}
           {CONTRACTS.token && walletClient && (

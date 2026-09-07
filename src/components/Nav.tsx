@@ -37,9 +37,6 @@ export default function Nav({ onHowItWorks }: { onHowItWorks?: () => void }) {
         <span className="font-display text-[17px] font-medium tracking-wide">
           Pokedrop
         </span>
-        {siteMode() === 'prelaunch' && (
-          <span className="chip chip-neutral hidden sm:inline-flex">Prelaunch</span>
-        )}
       </Link>
       <div className="flex flex-wrap items-center gap-4 lg:gap-6">
         <div className="flex flex-wrap items-center gap-4 lg:gap-5">

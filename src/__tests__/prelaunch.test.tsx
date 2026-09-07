@@ -208,6 +208,6 @@ describe('Roadmap in prelaunch', () => {
     expect(html).not.toContain('Demo progress');
     expect(html).toContain('#01');
     expect(html).toContain('#30');
-    expect(html.toLowerCase()).toContain('opens at launch');
+    expect(html.toLowerCase()).toContain('coming soon');
   });
 });

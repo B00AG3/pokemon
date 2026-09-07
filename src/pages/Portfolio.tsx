@@ -60,7 +60,7 @@ export default function Portfolio() {
         <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
           Portfolio
         </h1>
-        {prelaunch && <span className="chip chip-neutral">Opens at launch</span>}
+        {prelaunch && <span className="chip chip-neutral">Coming soon</span>}
         {market.mode === 'demo' && (
           <span className="chip chip-neutral">Demo portfolio</span>
         )}
@@ -89,8 +89,8 @@ export default function Portfolio() {
       )}
       {prelaunch && (
         <div className="mb-6 rounded-[4px] border border-white/10 bg-white/[0.03] px-5 py-3 font-mono text-xs text-white/55">
-          the portfolio opens at launch - the first cards airdrop free to POKEDROP
-          holders
+          the portfolio goes live soon - cards airdrop free to POKEDROP
+          holders once the draw opens
         </div>
       )}
 
@@ -162,7 +162,7 @@ export default function Portfolio() {
           {prelaunch ? (
             <>
               <p className="text-sm text-white/60">
-                Nothing here yet - the ladder opens at launch and the first
+                Nothing here yet - the ladder goes live soon and the first
                 cards airdrop free to POKEDROP holders.
               </p>
               <Link to="/roadmap" className="btn btn-primary mt-5">

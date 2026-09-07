@@ -362,8 +362,8 @@ export function MarketProvider({ children }: { children: ReactNode }) {
       open: false,
       entered: false,
       entrantCount: 0,
-      enter: async () => flash('The draw opens at launch', setNotice),
-      leave: async () => flash('The draw opens at launch', setNotice),
+      enter: async () => flash('The draw goes live soon', setNotice),
+      leave: async () => flash('The draw goes live soon', setNotice),
     }),
     [setNotice],
   );
@@ -482,7 +482,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   // prelaunch: every money action is the same notice - the market opens at
   // launch, and nothing simulated may stand in until then
   const opensAtLaunch = useCallback(
-    async () => flash('Trading opens at launch', setNotice),
+    async () => flash('Trading goes live soon', setNotice),
     [setNotice],
   );
 

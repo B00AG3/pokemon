@@ -26,7 +26,7 @@ export default function Roadmap() {
         <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
           Milestone roadmap
         </h1>
-        {prelaunch && <span className="chip chip-neutral">Opens at launch</span>}
+        {prelaunch && <span className="chip chip-neutral">Coming soon</span>}
         {market.mode === 'demo' && (
           <span className="chip chip-neutral">Demo progress</span>
         )}
@@ -44,7 +44,7 @@ export default function Roadmap() {
           </div>
           <p className="font-mono text-xs text-white/50">
             {prelaunch
-              ? `the ladder opens at launch - card #01 airdrops at ${formatUsd(MILESTONES[0].usd)}`
+              ? `the ladder goes live soon - card #01 airdrops at ${formatUsd(MILESTONES[0].usd)}`
               : nextMilestone
                 ? `next airdrop: card #${String(nextMilestone.index).padStart(2, '0')} at ${formatUsd(nextMilestone.usd)} - ${formatUsd(Math.max(0, nextMilestone.usd - cap))} to go`
                 : 'every milestone airdropped - the ladder is complete'}

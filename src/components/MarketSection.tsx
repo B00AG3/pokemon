@@ -106,7 +106,7 @@ export default function MarketSection() {
           The draw, then holder to holder
         </h2>
         {prelaunch ? (
-          <span className="chip chip-neutral">Opens at launch</span>
+          <span className="chip chip-neutral">Coming soon</span>
         ) : (
           ticker
         )}
@@ -114,9 +114,9 @@ export default function MarketSection() {
 
       {prelaunch && (
         <div className="panel p-7 sm:p-9">
-          <span className="chip chip-neutral">Opens at launch</span>
+          <span className="chip chip-neutral">Coming soon</span>
           <p className="mt-4 max-w-2xl font-display text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
-            The market opens at launch.
+            The market goes live soon.
           </p>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/55">
             When POKEDROP goes live, the ladder starts moving the same moment:{' '}

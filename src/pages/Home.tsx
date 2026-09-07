@@ -128,8 +128,8 @@ export default function Home({
               <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/55">
                 Every milestone card airdrops to a drawn wallet - no sale, no
                 mint price, nothing to snipe. The only ticket is holding POKEDROP
-                when the cap crosses. After that, cards sell holder to holder
-                at whatever the market pays.
+                when the cap crosses. After that, cards can be sold back for ETH
+                at a price that climbs with the market cap.
               </p>
             </div>
             <dl className="grid grid-cols-3 gap-6 self-end lg:border-l lg:border-white/10 lg:pl-8">

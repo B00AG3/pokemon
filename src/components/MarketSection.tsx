@@ -6,7 +6,7 @@ import { useTxConfirm } from './ConfirmTx';
 import Reveal from './Reveal';
 import { useMarket, ownerLabel } from '../state/MarketProvider';
 import { formatEth, formatPokePrice, pokeUsdPrice, referencePriceEth } from '../demo/market';
-import { LADDER_TCG_IDS, LADDER_USD } from '../constants/ladder';
+import { formatUsd, LADDER_TCG_IDS, LADDER_USD } from '../constants/ladder';
 
 /**
  * The holder-draw market. Milestone cards airdrop free to drawn holders;
@@ -103,7 +103,7 @@ export default function MarketSection() {
     <section id="demo" className="scroll-mt-10 border-t border-white/10 pb-16 pt-10">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-          The draw, then holder to holder
+          The draw, then sell for ETH
         </h2>
         {prelaunch ? (
           <span className="chip chip-neutral">Coming soon</span>
@@ -115,25 +115,64 @@ export default function MarketSection() {
       {prelaunch && (
         <div className="panel p-7 sm:p-9">
           <span className="chip chip-neutral">Coming soon</span>
+          <div className="mt-5 flex flex-wrap items-center gap-4">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void market.draw.enter()}
+            >
+              Enter draw
+            </button>
+            <span className="font-mono text-[11px] text-white/45">
+              free, one entry per wallet - entries open when the token goes live
+            </span>
+          </div>
           <p className="mt-4 max-w-2xl font-display text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
             The market goes live soon.
           </p>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/55">
             When POKEDROP goes live, the ladder starts moving the same moment:{' '}
             {LADDER_TCG_IDS.length} cards, the first airdropping free at $
-            {LADDER_USD[0].toLocaleString('en-US')} market cap and one more
-            every $
-            {((LADDER_USD[1] - LADDER_USD[0]) / 1000).toFixed(0)},000 after.
-            The draw, the live cap ticker, and holder-to-holder trading
-            activate with it.
+            {LADDER_USD[0].toLocaleString('en-US')} market cap, then one more
+            every $10,000 from $10,000 up. The draw and the live cap ticker
+            activate with it, and every card can be sold back for ETH.
           </p>
+          <div className="mt-8 grid grid-cols-3 gap-x-4 gap-y-8 sm:grid-cols-5 lg:grid-cols-10">
+            {LADDER_TCG_IDS.map((tcgId, i) => {
+              const art = market.artFor(tcgId);
+              const image = art?.image
+                ? getCardImageUrl({ image: art.image }, { quality: 'low' })
+                : undefined;
+              return (
+                <div key={tcgId} className="flex flex-col items-center gap-1.5 text-center">
+                  {image ? (
+                    <img
+                      src={image}
+                      alt={art?.name ?? tcgId}
+                      loading="lazy"
+                      className="h-28 w-20 rounded-[4px] border border-white/12 object-cover"
+                    />
+                  ) : (
+                    <div className="h-28 w-20 rounded-[4px] border border-white/12" />
+                  )}
+                  <span className="font-mono text-[10px] text-white/40">
+                    #{String(i + 1).padStart(2, '0')}
+                  </span>
+                  <span className="text-xs font-medium leading-tight">{art?.name ?? tcgId}</span>
+                  <span className="font-mono text-[10px] text-white/50">
+                    {formatUsd(LADDER_USD[i])}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
       {live && market.live.status === 'error' && (
         <div className="panel mb-6 flex flex-wrap items-center justify-between gap-3 border-red-400/30 px-5 py-3 font-mono text-xs text-red-400/90">
           <span>
-            market data unavailable - the contracts did not answer. trading is
+            market data unavailable - the contracts did not answer. sells are
             paused until they do; nothing here is simulated.
           </span>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => window.location.reload()}>

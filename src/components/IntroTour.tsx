@@ -415,7 +415,7 @@ export default function IntroTour({ onDone }: { onDone: () => void }) {
             <div className="px-4 pt-8 sm:px-6 lg:px-10 lg:pt-9">
               <div className="flex flex-wrap items-end justify-between gap-2">
                 <h2 className="font-display text-xl font-semibold tracking-tight text-[#f2f2f0] sm:text-2xl">
-                  Buy, sell, trade
+                  Buy, sell, cash out
                 </h2>
                 <span className="font-mono text-[10px] text-white/40 sm:text-[11px]">
                   market cap $5,688 - POKEDROP $0.0000

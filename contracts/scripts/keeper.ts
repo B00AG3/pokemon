@@ -221,13 +221,16 @@ async function poll() {
     }
     console.log(`[keeper] market cap $${fmt(mc)} | next milestone #${index} at $${fmt(threshold)}${drawInfo}`);
 
-    // Writing checkpoints and mints costs gas paid by this wallet; with a
-    // zero balance every attempt reverts, so warn quietly (once per 10 min)
-    // and keep only the free reads flowing.
+    // Writing checkpoints and mints costs gas paid by this wallet; a dust
+    // balance makes every attempt revert, so warn quietly (once per 10 min)
+    // and keep only the free reads flowing. 0.0001 ETH covers a checkpoint
+    // with headroom.
     const gas: bigint = await provider.getBalance(wallet.address);
-    if (gas === 0n) {
+    if (gas < 10n ** 14n) {
       if (Date.now() - lastGasWarnAt > 600_000) {
-        console.log(`[keeper] wallet ${wallet.address} has no gas - fund it to enable checkpoints, mints and sweeps`);
+        console.log(
+          `[keeper] wallet ${wallet.address} has ${ethers.formatEther(gas)} ETH - too little for a transaction. Fund it to enable checkpoints, mints and sweeps`,
+        );
         lastGasWarnAt = Date.now();
       }
       return;

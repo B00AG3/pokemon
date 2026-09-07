@@ -191,6 +191,7 @@ async function sweep(wallet: ethers.Wallet, cards: ethers.Contract): Promise<voi
 }
 
 let busy = false;
+let lastGasWarnAt = 0;
 
 async function poll() {
   if (busy) return;
@@ -219,6 +220,18 @@ async function poll() {
       /* older deployment without the draw */
     }
     console.log(`[keeper] market cap $${fmt(mc)} | next milestone #${index} at $${fmt(threshold)}${drawInfo}`);
+
+    // Writing checkpoints and mints costs gas paid by this wallet; with a
+    // zero balance every attempt reverts, so warn quietly (once per 10 min)
+    // and keep only the free reads flowing.
+    const gas: bigint = await provider.getBalance(wallet.address);
+    if (gas === 0n) {
+      if (Date.now() - lastGasWarnAt > 600_000) {
+        console.log(`[keeper] wallet ${wallet.address} has no gas - fund it to enable checkpoints, mints and sweeps`);
+        lastGasWarnAt = Date.now();
+      }
+      return;
+    }
 
     const now = BigInt(Math.floor(Date.now() / 1000));
 

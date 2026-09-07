@@ -33,19 +33,20 @@ function load(): DrawState {
 /** NPC entrants give the demo draw a real field to beat. */
 export const DEMO_NPC_ENTRANTS = ['npc-1', 'npc-2', 'npc-3'];
 
-export function useDemoDraw(address: string | undefined) {
+export function useDemoDraw(address: string | undefined, enabled = true) {
   const userKey = address ?? 'guest';
-  const [state, setState] = useState<DrawState>(load);
+  const [state, setState] = useState<DrawState>(() => (enabled ? load() : { entered: [] }));
   const stateRef = useRef(state);
   stateRef.current = state;
 
   useEffect(() => {
+    if (!enabled) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
       /* storage unavailable - draw state stays in memory */
     }
-  }, [state]);
+  }, [state, enabled]);
 
   const entered = state.entered.includes(userKey);
   const entrantCount = DEMO_NPC_ENTRANTS.length + state.entered.length;

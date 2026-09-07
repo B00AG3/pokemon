@@ -18,6 +18,7 @@ export default function Portfolio() {
   const [openCardId, setOpenCardId] = useState<string | null>(null);
 
   const live = market.mode === 'live';
+  const prelaunch = market.mode === 'prelaunch';
   const holdingsValue = market.myCards.reduce((sum, c) => sum + c.priceEth, 0);
   const totalCost = market.myCards.reduce(
     (sum, c) => sum + (market.costOf(c.id) ?? c.priceEth),
@@ -59,7 +60,10 @@ export default function Portfolio() {
         <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
           Portfolio
         </h1>
-        {!live && <span className="chip chip-neutral">Demo portfolio</span>}
+        {prelaunch && <span className="chip chip-neutral">Opens at launch</span>}
+        {market.mode === 'demo' && (
+          <span className="chip chip-neutral">Demo portfolio</span>
+        )}
       </div>
 
       {live && market.live.status === 'error' && (
@@ -77,10 +81,16 @@ export default function Portfolio() {
         </div>
       )}
 
-      {market.isGuest && !live && (
+      {market.isGuest && market.mode === 'demo' && (
         <div className="mb-6 rounded-[4px] border border-amber-400/20 bg-amber-400/5 px-5 py-3 font-mono text-xs text-amber-400/85">
           connect your wallet to keep a portfolio - guests share a scratch
           account
+        </div>
+      )}
+      {prelaunch && (
+        <div className="mb-6 rounded-[4px] border border-white/10 bg-white/[0.03] px-5 py-3 font-mono text-xs text-white/55">
+          the portfolio opens at launch - the first cards airdrop free to POKE
+          holders
         </div>
       )}
 
@@ -149,13 +159,27 @@ export default function Portfolio() {
       </h2>
       {!hasCards ? (
         <div className="panel mt-4 p-8 text-center">
-          <p className="text-sm text-white/60">
-            Nothing here yet. Enter the draw on the market page and hold POKE -
-            winning cards arrive free.
-          </p>
-          <Link to="/" className="btn btn-primary mt-5">
-            Enter the draw
-          </Link>
+          {prelaunch ? (
+            <>
+              <p className="text-sm text-white/60">
+                Nothing here yet - the ladder opens at launch and the first
+                cards airdrop free to POKE holders.
+              </p>
+              <Link to="/roadmap" className="btn btn-primary mt-5">
+                See the roadmap
+              </Link>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-white/60">
+                Nothing here yet. Enter the draw on the market page and hold
+                POKE - winning cards arrive free.
+              </p>
+              <Link to="/" className="btn btn-primary mt-5">
+                Enter the draw
+              </Link>
+            </>
+          )}
         </div>
       ) : (
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">

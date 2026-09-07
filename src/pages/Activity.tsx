@@ -56,6 +56,12 @@ export default function Activity() {
           feed reads airdrops and sales from the Robinhood Chain.
         </p>
       )}
+      {market.mode === 'prelaunch' && (
+        <p className="mb-6 max-w-2xl text-sm leading-relaxed text-white/55">
+          The feed starts at launch - every airdrop and sale on the ladder
+          will appear here as it happens on chain.
+        </p>
+      )}
 
       {market.activity.length === 0 ? (
         <div className="panel p-8 text-center">

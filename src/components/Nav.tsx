@@ -1,5 +1,6 @@
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import WalletButton from './WalletButton';
+import { siteMode } from '../web3/contracts';
 
 const LINKS = [
   { to: '/', label: 'Market' },
@@ -36,6 +37,9 @@ export default function Nav({ onHowItWorks }: { onHowItWorks?: () => void }) {
         <span className="font-display text-[17px] font-medium tracking-wide">
           Pokedrop
         </span>
+        {siteMode() === 'prelaunch' && (
+          <span className="chip chip-neutral hidden sm:inline-flex">Prelaunch</span>
+        )}
       </Link>
       <div className="flex flex-wrap items-center gap-4 lg:gap-6">
         <div className="flex flex-wrap items-center gap-4 lg:gap-5">
@@ -55,7 +59,9 @@ export default function Nav({ onHowItWorks }: { onHowItWorks?: () => void }) {
           ))}
         </div>
         <div className="flex items-center gap-3">
-          {location.pathname === '/' && onHowItWorks && (
+          {/* the tour walks the simulated demo market, so it stays
+              demo-build only: prelaunch and live never offer it */}
+          {location.pathname === '/' && onHowItWorks && siteMode() === 'demo' && (
             <button
               type="button"
               onClick={onHowItWorks}

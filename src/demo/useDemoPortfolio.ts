@@ -43,17 +43,18 @@ function load(): DemoState {
   return { ...NPCS };
 }
 
-export function useDemoPortfolio(address?: string) {
+export function useDemoPortfolio(address?: string, enabled = true) {
   const userKey = address ?? 'guest';
-  const [state, setState] = useState<DemoState>(load);
+  const [state, setState] = useState<DemoState>(() => (enabled ? load() : { ...NPCS }));
 
   useEffect(() => {
+    if (!enabled) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
       /* storage unavailable - demo state stays in memory */
     }
-  }, [state]);
+  }, [state, enabled]);
 
   const me = state[userKey] ?? { ...emptyAccount(), eth: GUEST_START_ETH };
 

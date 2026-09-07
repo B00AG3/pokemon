@@ -20,9 +20,10 @@ import type { MarketEvent } from '../demo/events';
 import { useMilestoneState } from '../web3/useMilestoneState';
 import { useCardMarket, type ChainCard } from '../web3/useCardMarket';
 import { useMarketWrites, useChainActivity } from '../web3/useMarketWrites';
-import { LIVE_MODE } from '../web3/contracts';
+import { siteMode, type SiteMode } from '../web3/contracts';
 import { targetChain } from '../web3/config';
 import { LADDER_TCG_IDS } from '../constants/ladder';
+import { clearOnce } from '../demo/storage';
 
 export interface CardArt {
   name: string;
@@ -64,7 +65,7 @@ interface DrawApi {
 }
 
 interface MarketApi {
-  mode: 'demo' | 'live';
+  mode: SiteMode;
   /** Display cap: live on-chain cap when available, else the demo ticker. */
   marketCap: number;
   demoCap: number;
@@ -73,10 +74,10 @@ interface MarketApi {
   live: {
     ready: boolean;
     /**
-     * 'off' = demo build (no contracts configured). 'connecting' = contracts
-     * configured, first read in flight. 'ready' = on-chain data flowing.
-     * 'error' = contracts configured but reads failed or returned nothing;
-     * the UI must say so instead of quietly showing demo data.
+     * 'off' = demo or prelaunch build (no contracts configured). 'connecting'
+     * = contracts configured, first read in flight. 'ready' = on-chain data
+     * flowing. 'error' = contracts configured but reads failed or returned
+     * nothing; the UI must say so instead of quietly showing demo data.
      */
     status: 'off' | 'connecting' | 'ready' | 'error';
     capUsd?: number;
@@ -145,15 +146,26 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   const { address, chain: connectedChain } = useAccount();
   const queryClient = useQueryClient();
   const { switchChain } = useSwitchChain();
+  // the site face for this boot: live (addresses wired), prelaunch (blanked
+  // addresses + VITE_PRELAUNCH=1, the launch-eve page), or the dev-only demo
+  const mode = siteMode();
+  const liveMode = mode === 'live';
+  const demoMode = mode === 'demo';
+  // one-time wipe of the retired demo market's storage on the first
+  // prelaunch/live boot, before any demo hook could load or re-persist it
+  useState(() => {
+    if (!demoMode) clearOnce('pokecard-wipe-1');
+    return true;
+  });
   // the simulated ticker only runs when the demo market actually powers the UI
-  const demoCap = useDemoMarket(1200, !LIVE_MODE);
+  const demoCap = useDemoMarket(1200, demoMode);
   const live = useMilestoneState(address);
   const chain = useCardMarket();
-  const portfolio = useDemoPortfolio(address);
-  const demoDraw = useDemoDraw(address);
-  const { events, record } = useDemoEvents();
+  const portfolio = useDemoPortfolio(address, demoMode);
+  const demoDraw = useDemoDraw(address, demoMode);
+  const { events, record } = useDemoEvents(demoMode);
   const writes = useMarketWrites();
-  const chainActivity = useChainActivity(LIVE_MODE);
+  const chainActivity = useChainActivity(liveMode);
   const balance = useBalance({ address, chainId: targetChain.id });
 
   const [notice, setNotice] = useState<string | null>(null);
@@ -190,7 +202,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   const userKey = address ?? 'guest';
   // Live readiness is strict: once contracts are configured, a failed or
   // empty read is an error state, never a reason to show simulated prices.
-  const liveStatus: MarketApi['live']['status'] = !LIVE_MODE
+  const liveStatus: MarketApi['live']['status'] = !liveMode
     ? 'off'
     : chain.cards.length > 0
       ? 'ready'
@@ -201,12 +213,12 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   // reads only need the target chain; writes additionally require a
   // connected wallet to already be on it (or to accept the switch prompt)
   const chainOk =
-    !LIVE_MODE || !address || !connectedChain || connectedChain.id === targetChain.id;
+    !liveMode || !address || !connectedChain || connectedChain.id === targetChain.id;
 
   // ---------- demo airdrop: settle the draw when the cap crosses ----------
 
   useEffect(() => {
-    if (LIVE_MODE) return;
+    if (!demoMode) return;
     if (demoDraw.winner) return;
     if (demoCap < DEMO_CARDS[DEMO_CARDS.length - 1].launchMc) return;
     const winner = demoDraw.settle();
@@ -219,7 +231,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
         : `Card #04 airdropped to ${ownerLabel(winner, userKey)}`,
       setNotice,
     );
-  }, [liveReady, demoCap, demoDraw, portfolio, record, userKey]);
+  }, [demoMode, liveReady, demoCap, demoDraw, portfolio, record, userKey]);
 
   const demoCards = useMemo<MarketCard[]>(
     () =>
@@ -256,8 +268,10 @@ export function MarketProvider({ children }: { children: ReactNode }) {
 
   // Demo data exists only in demo builds. In a live build a failed read shows
   // an explicit error state; fabricated prices must never stand in for chain
-  // data at launch.
-  const cards = liveStatus === 'off' ? demoCards : liveCards;
+  // data at launch. Prelaunch shows no market at all - the ladder page and a
+  // locked draw carry the face until the addresses land.
+  const cards =
+    liveStatus === 'off' ? (mode === 'demo' ? demoCards : []) : liveCards;
 
   // "treasury" is a display label for the MilestoneCards owner; when the
   // connected wallet IS the treasury (testnet deployer), its cards are mine
@@ -274,23 +288,27 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     [cards, address, treasuryIsMe],
   );
 
-  const activity: MarketEvent[] = liveStatus === 'off' ? events : (chainActivity.data ?? []);
+  const activity: MarketEvent[] =
+    liveStatus === 'off' ? (mode === 'demo' ? events : []) : (chainActivity.data ?? []);
 
   const cardById = useCallback((id: string) => cards.find((c) => c.id === id), [cards]);
 
-  // without a connected wallet there is no live balance to show
+  // without a connected wallet there is no live balance to show; prelaunch
+  // shows no simulated balance either - nothing has launched yet
   const eth = liveReady
     ? balance.data
       ? Number(formatEther(balance.data.value))
       : 0
-    : portfolio.eth;
+    : mode === 'demo'
+      ? portfolio.eth
+      : 0;
 
   const done = useCallback(
     (message: string) => {
       flash(message, setNotice);
-      if (LIVE_MODE) void queryClient.invalidateQueries();
+      if (liveMode) void queryClient.invalidateQueries();
     },
-    [queryClient],
+    [queryClient, liveMode],
   );
 
   // ---------- draw ----------
@@ -337,7 +355,24 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     [demoDraw, done],
   );
 
-  const draw: DrawApi = LIVE_MODE ? liveDraw : demoDrawApi;
+  // prelaunch keeps the draw visible but closed: the chip reads "opens at
+  // launch" and entering is a notice, never a simulated entry
+  const prelaunchDraw: DrawApi = useMemo(
+    () => ({
+      open: false,
+      entered: false,
+      entrantCount: 0,
+      enter: async () => flash('The draw opens at launch', setNotice),
+      leave: async () => flash('The draw opens at launch', setNotice),
+    }),
+    [setNotice],
+  );
+
+  const draw: DrawApi = liveMode
+    ? liveDraw
+    : mode === 'prelaunch'
+      ? prelaunchDraw
+      : demoDrawApi;
 
   // ---------- demo actions ----------
 
@@ -441,14 +476,22 @@ export function MarketProvider({ children }: { children: ReactNode }) {
 
   const notLive = useCallback(
     async () => flash('Live trading activates with the contract deploy', setNotice),
-    [],
+    [setNotice],
+  );
+
+  // prelaunch: every money action is the same notice - the market opens at
+  // launch, and nothing simulated may stand in until then
+  const opensAtLaunch = useCallback(
+    async () => flash('Trading opens at launch', setNotice),
+    [setNotice],
   );
 
   // Live caps read 0 until the pool is seeded; show the real number (or 0),
-  // never the demo ticker, once contracts are configured
-  const liveCapUsd =
-    live.marketCap !== undefined ? Number(live.marketCap) / 1e18 : liveStatus === 'off' ? demoCap : 0;
-  const displayCap = liveStatus === 'off' ? demoCap : liveCapUsd;
+  // never the demo ticker, once contracts are configured. Prelaunch reads 0:
+  // no simulated cap on the launch-eve face.
+  const liveCapUsd = live.marketCap !== undefined ? Number(live.marketCap) / 1e18 : 0;
+  const displayCap =
+    liveStatus === 'off' ? (mode === 'demo' ? demoCap : 0) : liveCapUsd;
 
   /** Listing reference: the on-chain chart value (what redeem pays), falling
    * back to the same formula computed from the live cap and the contract's
@@ -461,7 +504,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   );
 
   const value: MarketApi = {
-    mode: liveStatus === 'off' ? 'demo' : 'live',
+    mode,
     marketCap: displayCap,
     demoCap,
     userKey,
@@ -484,8 +527,8 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     myCards,
     eth,
     isGuest: !address,
-    realizedEth: liveStatus === 'off' ? portfolio.realized : undefined,
-    costOf: (id) => (liveStatus === 'off' ? portfolio.costOf(id) : undefined),
+    realizedEth: liveStatus === 'off' && mode === 'demo' ? portfolio.realized : undefined,
+    costOf: (id) => (liveStatus === 'off' && mode === 'demo' ? portfolio.costOf(id) : undefined),
     artFor: (tcgId) => (tcgId ? art[tcgId] : undefined),
     activity,
     busy: writes.busy,
@@ -493,23 +536,38 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     notice,
     setNotice,
     draw,
-    actions: {
-      buy: LIVE_MODE ? liveBuy : demoBuy,
-      // in live mode "sell" lists the card on CardSwap at the on-chain chart
-      // value (agedCap x base / launchCap); sellers can re-list at any price
-      sell: LIVE_MODE
-        ? async (id) => {
+    actions: liveMode
+      ? {
+          buy: liveBuy,
+          // in live mode "sell" lists the card on CardSwap at the on-chain
+          // chart value (agedCap x base / launchCap); sellers can re-list at
+          // any price
+          sell: async (id) => {
             const card = cardById(id);
             if (!card) return;
             await liveList(id, sellReferenceEth(card));
+          },
+          // redeem sells the card back to the protocol at its chart value
+          redeem: liveRedeem,
+          listForSale: liveList,
+          cancelListing: liveCancel,
+        }
+      : mode === 'prelaunch'
+        ? {
+            buy: opensAtLaunch,
+            sell: opensAtLaunch,
+            redeem: opensAtLaunch,
+            listForSale: opensAtLaunch,
+            cancelListing: opensAtLaunch,
           }
-        : demoSell,
-      // redeem sells the card back to the protocol at its chart value
-      // (demo: the simulated market pays the same formula price)
-      redeem: LIVE_MODE ? liveRedeem : demoSell,
-      listForSale: LIVE_MODE ? liveList : notLive,
-      cancelListing: LIVE_MODE ? liveCancel : async () => undefined,
-    },
+        : {
+            buy: demoBuy,
+            sell: demoSell,
+            // demo: the simulated market pays the same formula price on redeem
+            redeem: demoSell,
+            listForSale: notLive,
+            cancelListing: async () => undefined,
+          },
   };
 
   return <MarketContext.Provider value={value}>{children}</MarketContext.Provider>;

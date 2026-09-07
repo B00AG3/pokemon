@@ -35,6 +35,7 @@ export default function Home({
   onTourDone: () => void;
 }) {
   const market = useMarket();
+  const prelaunch = market.mode === 'prelaunch';
 
   // The hero belt is the milestone ladder itself, from a single source: once
   // a card enters the belt it keeps its slot, so nothing can swap identities
@@ -69,9 +70,9 @@ export default function Home({
             className="rise mt-6 max-w-md text-[15px] leading-relaxed text-white/60"
             style={{ animationDelay: '260ms' }}
           >
-            POKE launches on the Robinhood Chain. At each market-cap
-            milestone, the contract airdrops one real card to a drawn holder -
-            free, exactly once. Hold, and the collection comes to you.
+            {prelaunch
+              ? `POKE launches on the Robinhood Chain, and the ladder opens at launch: ${LADDER_TCG_IDS.length} cards, the first airdropping free at $${LADDER_USD[0].toLocaleString('en-US')} market cap and one more every $10,000 after. Hold, and the collection comes to you.`
+              : 'POKE launches on the Robinhood Chain. At each market-cap milestone, the contract airdrops one real card to a drawn holder - free, exactly once. Hold, and the collection comes to you.'}
           </p>
           <div
             className="rise mt-8 flex flex-wrap gap-3"
@@ -120,7 +121,9 @@ export default function Home({
           <div className="panel mt-10 grid gap-8 p-7 sm:p-9 lg:grid-cols-[1.2fr_1fr]">
             <div>
               <p className="max-w-xl font-display text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
-                Card #01 went to a holder for free. The next one could be you.
+                {prelaunch
+                  ? 'Card #01 airdrops to a holder for free. The first could be you.'
+                  : 'Card #01 went to a holder for free. The next one could be you.'}
               </p>
               <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/55">
                 Every milestone card airdrops to a drawn wallet - no sale, no
@@ -146,7 +149,7 @@ export default function Home({
                 <dt className="font-mono text-[10px] tracking-[0.08em] text-white/40">
                   cards, one each
                 </dt>
-                <dd className="mt-2 font-mono text-lg text-white">8</dd>
+                <dd className="mt-2 font-mono text-lg text-white">{LADDER_TCG_IDS.length}</dd>
               </div>
             </dl>
           </div>

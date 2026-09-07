@@ -6,6 +6,7 @@ import { useTxConfirm } from './ConfirmTx';
 import Reveal from './Reveal';
 import { useMarket, ownerLabel } from '../state/MarketProvider';
 import { formatEth, formatPokePrice, pokeUsdPrice, referencePriceEth } from '../demo/market';
+import { LADDER_TCG_IDS, LADDER_USD } from '../constants/ladder';
 
 /**
  * The holder-draw market. Milestone cards airdrop free to drawn holders;
@@ -25,6 +26,7 @@ export default function MarketSection() {
   const connectWallet = () => openConnectModal?.();
 
   const live = market.mode === 'live';
+  const prelaunch = market.mode === 'prelaunch';
   const cards = market.cards;
   const drawCard = cards.find((c) => !c.minted) ?? null;
 
@@ -103,8 +105,30 @@ export default function MarketSection() {
         <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
           The draw, then holder to holder
         </h2>
-        {ticker}
+        {prelaunch ? (
+          <span className="chip chip-neutral">Opens at launch</span>
+        ) : (
+          ticker
+        )}
       </div>
+
+      {prelaunch && (
+        <div className="panel p-7 sm:p-9">
+          <span className="chip chip-neutral">Opens at launch</span>
+          <p className="mt-4 max-w-2xl font-display text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
+            The market opens at launch.
+          </p>
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/55">
+            When POKE goes live, the ladder starts moving the same moment:{' '}
+            {LADDER_TCG_IDS.length} cards, the first airdropping free at $
+            {LADDER_USD[0].toLocaleString('en-US')} market cap and one more
+            every $
+            {((LADDER_USD[1] - LADDER_USD[0]) / 1000).toFixed(0)},000 after.
+            The draw, the live cap ticker, and holder-to-holder trading
+            activate with it.
+          </p>
+        </div>
+      )}
 
       {live && market.live.status === 'error' && (
         <div className="panel mb-6 flex flex-wrap items-center justify-between gap-3 border-red-400/30 px-5 py-3 font-mono text-xs text-red-400/90">
@@ -131,6 +155,7 @@ export default function MarketSection() {
         </div>
       )}
 
+      {!prelaunch && (
       <div className="panel mb-6 flex flex-wrap items-center gap-x-8 gap-y-2 px-5 py-3 font-mono text-xs text-white/55">
         <span>
           balance: <span className="text-white">{formatEth(market.eth)}</span>
@@ -161,7 +186,9 @@ export default function MarketSection() {
           <span className="w-full break-words text-red-400/90">{market.txError.slice(0, 180)}</span>
         )}
       </div>
+      )}
 
+      {!prelaunch && (
       <Reveal>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {drawCard && market.draw.open && (
@@ -268,6 +295,7 @@ export default function MarketSection() {
           })}
         </div>
       </Reveal>
+      )}
 
       {openCard && (
         <CardDetail

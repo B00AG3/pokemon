@@ -7,9 +7,11 @@ const MAX_EVENTS = 100;
 /**
  * Rolling activity log for the demo market, persisted to localStorage.
  * Starts with seeded trader history so the Activity page is never empty.
+ * Disabled outside demo mode so live/prelaunch boots never resurrect the key.
  */
-export function useDemoEvents() {
+export function useDemoEvents(enabled = true) {
   const [events, setEvents] = useState<MarketEvent[]>(() => {
+    if (!enabled) return [];
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) return JSON.parse(raw) as MarketEvent[];
@@ -20,12 +22,13 @@ export function useDemoEvents() {
   });
 
   useEffect(() => {
+    if (!enabled) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
     } catch {
       /* storage unavailable - events stay in memory */
     }
-  }, [events]);
+  }, [events, enabled]);
 
   const record = useCallback((event: Omit<MarketEvent, 'id' | 'ts'>) => {
     setEvents((prev) =>

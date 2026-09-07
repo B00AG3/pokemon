@@ -3,9 +3,11 @@
  * VITE_CARDS_ADDRESS / VITE_ORACLE_ADDRESS / VITE_SWAP_ADDRESS /
  * VITE_TOKEN_ADDRESS in .env after running `npm run deploy:testnet` in
  * /contracts (addresses are printed and saved to deployments/<network>.json).
- * Addresses stay undefined until then, and the web3 hooks disable themselves
- * gracefully so the demo market keeps running. VITE_SALE_ADDRESS is optional:
- * CardSale only matters for treasury-held fallback cards.
+ * Addresses stay undefined until then and the web3 hooks disable themselves
+ * gracefully; the site then shows the prelaunch face when VITE_PRELAUNCH=1
+ * (see siteMode) and the demo market only as the dev-only fallback.
+ * VITE_SALE_ADDRESS is optional: CardSale only matters for treasury-held
+ * fallback cards.
  */
 import { parseAbi } from 'viem';
 
@@ -22,6 +24,51 @@ export const CONTRACTS = {
 };
 /** True when the on-chain layer is deployed and wired via .env. */
 export const LIVE_MODE = Boolean(CONTRACTS.cards && CONTRACTS.oracle && CONTRACTS.swap);
+
+/** The three faces the site can present to a visitor. */
+export type SiteMode = 'live' | 'prelaunch' | 'demo';
+
+/** Env snapshot shape siteMode reads (import.meta.env or a test stand-in). */
+export type SiteEnv = Record<string, string | undefined>;
+
+/**
+ * Mode selection, pure so the cutover matrix is testable: live as soon as the
+ * cards + oracle + swap trio is wired (addresses win over any lingering
+ * prelaunch flag), prelaunch when the addresses are blank and
+ * VITE_PRELAUNCH=1, and the demo market only as the dev-only fallback.
+ */
+export function resolveSiteMode(
+  wired: { cards?: string; oracle?: string; swap?: string },
+  prelaunchFlag: string | boolean | undefined,
+): SiteMode {
+  const isLive = Boolean(
+    address(wired.cards) && address(wired.oracle) && address(wired.swap),
+  );
+  if (isLive) return 'live';
+  return prelaunchFlag === true || prelaunchFlag === '1' ||
+      String(prelaunchFlag).toLowerCase() === 'true'
+    ? 'prelaunch'
+    : 'demo';
+}
+
+/**
+ * The site mode for an env snapshot, defaulting to the build's env. Called at
+ * render time by the market layer so a single source answers both the
+ * provider and the pages.
+ */
+export function siteMode(env: SiteEnv = import.meta.env as SiteEnv): SiteMode {
+  return resolveSiteMode(
+    {
+      cards: env.VITE_CARDS_ADDRESS,
+      oracle: env.VITE_ORACLE_ADDRESS,
+      swap: env.VITE_SWAP_ADDRESS,
+    },
+    env.VITE_PRELAUNCH,
+  );
+}
+
+/** Mode frozen at module load for presentational branches (Nav and pages). */
+export const SITE_MODE: SiteMode = siteMode();
 
 export const milestoneCardsAbi = parseAbi([
   'function nextMilestone() view returns (uint256 index, uint256 marketCap)',

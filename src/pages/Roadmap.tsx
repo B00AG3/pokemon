@@ -4,15 +4,20 @@ import { LADDER_USD, MILESTONES, formatUsd } from '../constants/ladder';
 
 /**
  * The full milestone ladder. Minted state comes from the chain in live mode;
- * in demo mode the first three cards are minted, matching the demo market.
+ * prelaunch shows every rung locked (nothing has minted yet), and demo mode
+ * shows the first three cards minted, matching the demo market.
  */
 export default function Roadmap() {
   const market = useMarket();
+  const prelaunch = market.mode === 'prelaunch';
   const mintedCount =
-    market.mode === 'live' ? (market.live.totalMinted ?? 0) : 3;
-  const nextMilestone = MILESTONES.find((m) => m.index > mintedCount);
+    market.mode === 'live' ? (market.live.totalMinted ?? 0) : prelaunch ? 0 : 3;
+  // in prelaunch there is no open next rung - the whole ladder is locked
+  const nextMilestone = prelaunch ? undefined : MILESTONES.find((m) => m.index > mintedCount);
   const cap = market.marketCap;
-  const progressTarget = nextMilestone?.usd ?? MILESTONES[MILESTONES.length - 1].usd;
+  const progressTarget =
+    nextMilestone?.usd ??
+    (prelaunch ? MILESTONES[0].usd : MILESTONES[MILESTONES.length - 1].usd);
   const progress = Math.min(100, Math.max(0, (cap / progressTarget) * 100));
 
   return (
@@ -21,6 +26,7 @@ export default function Roadmap() {
         <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
           Milestone roadmap
         </h1>
+        {prelaunch && <span className="chip chip-neutral">Opens at launch</span>}
         {market.mode === 'demo' && (
           <span className="chip chip-neutral">Demo progress</span>
         )}
@@ -37,9 +43,11 @@ export default function Roadmap() {
             </p>
           </div>
           <p className="font-mono text-xs text-white/50">
-            {nextMilestone
-              ? `next airdrop: card #${String(nextMilestone.index).padStart(2, '0')} at ${formatUsd(nextMilestone.usd)} - ${formatUsd(Math.max(0, nextMilestone.usd - cap))} to go`
-              : 'every milestone airdropped - the ladder is complete'}
+            {prelaunch
+              ? `the ladder opens at launch - card #01 airdrops at ${formatUsd(MILESTONES[0].usd)}`
+              : nextMilestone
+                ? `next airdrop: card #${String(nextMilestone.index).padStart(2, '0')} at ${formatUsd(nextMilestone.usd)} - ${formatUsd(Math.max(0, nextMilestone.usd - cap))} to go`
+                : 'every milestone airdropped - the ladder is complete'}
           </p>
         </div>
         <div className="mt-5 h-1 overflow-hidden rounded-full bg-white/10">

@@ -1,8 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { artifacts, ethers, network } from 'hardhat';
-
-const THRESHOLDS_DEFAULT = '10000,25000,50000,100000,250000,500000,1000000';
+import { DEFAULT_THRESHOLDS, parseThresholds } from './thresholds';
 
 /**
  * Deploys MilestoneCards (+ MockMilestonePriceOracle when MOCK_ORACLE=1,
@@ -45,9 +44,9 @@ async function main() {
     throw new Error('MOCK_ORACLE=1 (or no oracle config) is not allowed on robinhoodMainnet');
   }
 
-  const thresholds = (process.env.THRESHOLDS ?? THRESHOLDS_DEFAULT)
-    .split(',')
-    .map((s) => BigInt(s.trim()) * 10n ** 18n);
+  // Defaults to the 30-rung launch ladder (20000,30000,...,310000); the shared
+  // parser rejects malformed, nonpositive, or non-ascending values up front.
+  const thresholds = parseThresholds(process.env.THRESHOLDS ?? DEFAULT_THRESHOLDS);
   const confirmWindow = BigInt(process.env.CONFIRM_WINDOW ?? '3600');
   if (confirmWindow === 0n) {
     console.log(
@@ -56,7 +55,8 @@ async function main() {
   }
   const redeemDelay = BigInt(process.env.REDEEM_DELAY ?? '21600');
   const baseTokenURI = process.env.BASE_TOKEN_URI ?? 'ipfs://pokecard-lab/';
-  const keeper = process.env.KEEPER_ADDRESS ?? deployer.address;
+  // || (not ??) so an empty KEEPER_ADDRESS= line in .env falls back cleanly
+  const keeper = process.env.KEEPER_ADDRESS || deployer.address;
 
   console.log('Deployer:', deployer.address, 'network:', network.name);
 
@@ -251,7 +251,12 @@ async function main() {
   console.log('Saved to deployments/' + network.name + '.json');
 }
 
-main().catch((error) => {
+// Exported for the in-process script tests (test/launchCards.test.ts): they
+// await this before reading the deployment record. The catch keeps the
+// standalone `hardhat run` behavior of exiting non-zero on failure.
+const deployment = main();
+deployment.catch((error) => {
   console.error(error);
   process.exit(1);
 });
+export { deployment };

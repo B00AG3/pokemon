@@ -6,12 +6,71 @@ and cap checkpoints, the holder draw that airdrops each card for free,
 chart-value redemption from the ETH pool, and CardSwap P2P escrowed listings
 with exact royalty math.
 
+## Same-day cutover around a Pons-launched token
+
+This is the launch path of record. The user NEVER runs a script: the token is
+created on the Pons website UI, the conductor hooks everything else around it,
+and ongoing operation is 100% hosted (frontend on Vercel, keeper on Fly).
+
+1. [USER-GATED] Create the main token on the Pons WEBSITE UI (connect the
+   dev wallet, fill name/ticker/logo/socials; standard curve, zero creator
+   tax, no buyback, native ETH). The scripted launcher
+   (`npm run launch:pons`) is BACKUP ONLY - see the banner in
+   `contracts/scripts/launch-pons.ts` - and is not part of this flow.
+2. [USER-GATED] Fund the deployer wallet and the Fly keeper wallet with gas
+   (the keeper needs >= 0.001 ETH, checked on-chain before launch), and
+   choose the redemption economics: `REDEEM_BASE_PRICE_WEI` (0.01 ETH
+   default) and `POOL_FUND_ETH` (worst-case full-ladder liability is
+   ~93.85x the base price, ~0.94 ETH at the default; see
+   `contracts/.env.example`).
+3. [USER-GATED] Hand `TOKEN_ADDRESS` to the conductor.
+4. Conductor dry-runs the hookup (read-only, aborts on the first check that
+   fails - THRESHOLDS shape, keeper gas floor, curve resolution):
+   ```bash
+   cd contracts && TOKEN_ADDRESS=<pons token> DEPLOY_SALE=0 npm run launch:cards
+   ```
+   The dry run prints the resolved curve, the 30 rungs, the keeper check,
+   pool sizing, and the Fly secrets block preview (the `VITE_*` block prints
+   after GO=1, once the deployed addresses exist).
+5. Conductor launches for real (deploys curve oracle + MilestoneCards +
+   CardSwap around the EXISTING token - never creating one - prices the
+   oracle, and funds the redemption pool; the Pons launch seeds only the
+   bonding curve, nothing funds the MilestoneCards pool automatically).
+   `DEPLOY_SALE=0` overrides any testnet `DEPLOY_SALE=1` left in `.env` -
+   the cutover wires no treasury sale:
+   ```bash
+   TOKEN_ADDRESS=<pons token> POOL_FUND_ETH=<eth> GO=1 DEPLOY_SALE=0 npm run launch:cards
+   ```
+   It prints the `VITE_*` block and the Fly secrets block at the end, and
+   warns loudly if `BASE_TOKEN_URI` is still the `ipfs://pokecard-lab/`
+   placeholder (it prints the prefilled `npm run metadata` command for all
+   30 rungs; pinning needs `PINATA_JWT`, user-gated).
+6. Conductor commits the new `.env.production` (the five `VITE_*` addresses
+   filled in, `VITE_PRELAUNCH` removed) and pushes - Vercel rebuilds and the
+   site goes live in ~2 min.
+7. Conductor cuts the hosted keeper over (the exact block launch-cards
+   prints; keep `START_KEEPER=0`, the default - the local keeper behind
+   `START_KEEPER=1` is a smoke-run escape hatch only):
+   ```bash
+   fly secrets set -a pokecard-keeper \
+     CARDS_ADDRESS=<new cards> \
+     POKE_TOKEN=<new token> \
+     CURVE_ADDRESS=<new curve> \
+     SWEEP_MODE=live \
+     INTERVAL_MS=15000 \
+     KEEPER_RPC_URL=https://rpc.mainnet.chain.robinhood.com
+   fly apps restart -a pokecard-keeper
+   ```
+8. Verify: the site shows live mode, the first rung pending at $20,000, and
+   `fly logs -a pokecard-keeper` shows marketCap reads each poll (keeper
+   operation details live in the keeper section below).
+
 ## Quick path: same-day Pons smoke test (real money, throwaway values)
 
 For testing the whole loop on mainnet the day the token launches, deploy a
 throwaway stack bound to the Pons token with tiny thresholds and delays. The
-real ladder launch (sections 1-5) happens later with real values; do not
-reuse the smoke stack for it.
+real ladder launch is the same-day cutover section above; do not reuse the
+smoke stack for it.
 
 One-command version (steps 2-5 and 7 automated, keeper included):
 
@@ -32,7 +91,8 @@ deployer key in contracts/.env (gitignored) and use a burner wallet.
      wallet; if it does not, run `npx ts-node scripts/point-fees-at-keeper.ts`
      right after (with EXECUTE=1, from the wallet that launched) so creator
      fees land where the keeper sweeps them into the card pool.
-   - SCRIPTED: `NAME=PokeCard SYMBOL=POKE npm run launch:pons`, then
+   - SCRIPTED (BACKUP ONLY - the website above is the launch path of
+     record): `NAME=PokeCard SYMBOL=POKE npm run launch:pons`, then
      `EXECUTE=1` to fire. The fee wallet already defaults to the keeper.
    The keeper then claims the creator fees (70% of trading fees, paid in
    ETH + POKE) on its sweep
@@ -76,16 +136,21 @@ deployer key in contracts/.env (gitignored) and use a burner wallet.
 
 ## 0. Decisions to lock before touching mainnet
 
-- [ ] Milestone ladder + confirm window (hours, not the testnet 60s)
+- [ ] Milestone ladder + confirm window (the 30-rung ladder - $20,000 first
+      card, +$10,000 per rung up to $310,000 - is the default everywhere;
+      confirm window in hours, not the testnet 60s)
 - [ ] Redemption base price (`REDEEM_BASE_PRICE_WEI`; 0.01 ETH default) and
       redeem delay (`REDEEM_DELAY`; 21600s = 6h default). Chart values and the
       redemption pool liability both scale off the base price.
-- [ ] Redemption pool funding: worst case for the full ladder is
-      `basePrice x (200 + 100 + 40 + 20 + 10 + 4 + 2 + 1)` = 377x the base
-      price (3.77 ETH at 0.01). Fund at least that before launch day.
+- [ ] Redemption pool funding: worst case for the full 30-rung ladder is
+      `basePrice x 31 x (H(31) - 1)` = ~93.85x the base price (~0.94 ETH at
+      the 0.01 base, ~1.41 ETH at the keeper's 150% sweep margin). Fund at
+      least that before launch day; `POOL_FUND_ETH` below it draws a warning
+      from launch-cards.
 - [ ] Treasury multisig (Safe) address; keeper wallet generated + funded
 - [ ] Final card artwork pinned to IPFS (`PINATA_JWT`, `npm run metadata`) -
-      all 8 cards, not just the first 5
+      all 30 cards; the metadata command defaults to the full 30-card
+      manifest
 - [ ] IP + legal review of selling Pokemon card imagery and running a token
 
 ## 1. Price infrastructure
@@ -148,6 +213,49 @@ to feed chart-value pricing. Add monitoring: alert when the process dies,
 when `totalMinted` changes, or when `lastCheckpointAt` stalls past an hour.
 Upgrade path: swap the script for Gelato/Chainlink Automation tasks calling
 `confirmCrossing`/`mintNext`/`checkpointCap`.
+
+### Fly keeper cutover (pokecard-keeper)
+
+The hosted keeper is the app `pokecard-keeper` (`contracts/fly.toml`; the
+Dockerfile compiles `contracts/scripts/keeper.ts` to `dist/keeper.js`). It is
+configured entirely through Fly secrets - no addresses live in the repo - and
+one machine keeps polling the old stack until the secrets change. Cutover:
+
+```bash
+fly secrets set -a pokecard-keeper \
+  CARDS_ADDRESS=<new cards> \
+  POKE_TOKEN=<new token> \
+  CURVE_ADDRESS=<new curve> \
+  SWEEP_MODE=live \
+  INTERVAL_MS=15000 \
+  KEEPER_RPC_URL=https://rpc.mainnet.chain.robinhood.com
+fly apps restart -a pokecard-keeper
+```
+
+Verify with `fly logs -a pokecard-keeper`:
+
+- The boot summary line shows the NEW `CARDS_ADDRESS`, the mainnet RPC, the
+  15000ms interval, sweep mode live, the keeper wallet address, and its ETH
+  balance: `[keeper] boot: watching <cards> on <rpc> every 15000ms | sweep
+  live | keeper <address> | wallet balance <x> ETH`.
+- Every poll logs a market-cap read (`[keeper] market cap $...`), proving
+  the oracle is reachable on the new stack.
+- No dust warning (`too little for a transaction`) once the keeper wallet is
+  funded; the old smoke stack receives no further writes after the restart.
+
+Hazards and gates:
+
+- `KEEPER_RPC_URL` defaults to the Robinhood TESTNET RPC when the secret is
+  unset, which would silently poll the wrong chain. Always pin the mainnet
+  URL (above); `CARDS_ADDRESS` and `KEEPER_PRIVATE_KEY` are required - with
+  either missing the process exits non-zero at boot instead of polling
+  anything.
+- [USER-GATED] Keeper wallet gas funding: the Fly keeper wallet
+  (`0xD805A36605391b1ed8C3E7d1C846d2D161541d6f`) holds dust only. Until it
+  is funded (>= 0.001 ETH), the built-in dust guard keeps the free reads
+  flowing (market-cap polls, boot balance) and skips paid writes -
+  checkpoints, mints, sweeps - degrading to read-only rather than crashing.
+  Fund it to enable the first checkpoint tx and milestone mints.
 
 ## 4. Frontend
 

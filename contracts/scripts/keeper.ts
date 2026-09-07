@@ -1,5 +1,14 @@
 import * as dotenv from 'dotenv';
 import { ethers } from 'ethers';
+import {
+  DEFAULT_KEEPER_INTERVAL_MS,
+  DEFAULT_KEEPER_RPC_URL,
+  DEFAULT_SWEEP_MODE,
+  KeeperEnvSummary,
+  SweepMode,
+  formatKeeperBootLine,
+  summarizeKeeperEnv,
+} from './keeperEnv';
 
 dotenv.config();
 
@@ -32,9 +41,9 @@ dotenv.config();
  * Run: npm run keeper
  */
 
-const RPC = process.env.KEEPER_RPC_URL ?? 'https://rpc.testnet.chain.robinhood.com';
+const RPC = process.env.KEEPER_RPC_URL ?? DEFAULT_KEEPER_RPC_URL;
 const CARDS_ADDRESS = process.env.CARDS_ADDRESS;
-const INTERVAL_MS = Number(process.env.INTERVAL_MS ?? 30_000);
+const INTERVAL_MS = Number(process.env.INTERVAL_MS ?? DEFAULT_KEEPER_INTERVAL_MS);
 
 // ---- fee sweep: Pons creator fees -> redemption pool, overflow -> team ----
 // At launch the Pons fee recipient is the keeper wallet, so the 70% creator
@@ -46,7 +55,7 @@ const INTERVAL_MS = Number(process.env.INTERVAL_MS ?? 30_000);
 //   observe  - read and log pending fees only (default; proves the reads
 //              against the live Pons deployment during the smoke run)
 //   live     - claim and route for real
-const SWEEP_MODE = (process.env.SWEEP_MODE ?? 'observe') as 'off' | 'observe' | 'live';
+const SWEEP_MODE = (process.env.SWEEP_MODE ?? DEFAULT_SWEEP_MODE) as SweepMode;
 const SWEEP_EVERY_MS = Number(process.env.SWEEP_EVERY_MS ?? 600_000);
 const SWEEP_MARGIN_PCT = Number(process.env.SWEEP_MARGIN_PCT ?? 150);
 const SWEEP_MIN_WEI = BigInt(process.env.SWEEP_MIN_WEI ?? 10n ** 14n); // skip dust
@@ -310,12 +319,31 @@ async function poll() {
   }
 }
 
+/** One boot log line: the config summary plus the wallet balance (read-only;
+ * a failed or slow balance read never blocks boot, and the per-poll dust
+ * guard below stays the only thing that gates writes). */
+async function logBootLine(summary: KeeperEnvSummary): Promise<void> {
+  let balance = 'unavailable';
+  try {
+    const provider = new ethers.JsonRpcProvider(summary.rpcUrl);
+    balance = `${ethers.formatEther(await provider.getBalance(summary.keeperAddress))} ETH`;
+  } catch {
+    /* boot log nicety only */
+  }
+  console.log(
+    `[keeper] boot: ${formatKeeperBootLine(summary)} | wallet balance ${balance}`,
+  );
+}
+
 function main() {
-  if (!process.env.KEEPER_PRIVATE_KEY || !process.env.CARDS_ADDRESS) {
-    console.error('KEEPER_PRIVATE_KEY and CARDS_ADDRESS are required (see .env.example)');
+  let summary: KeeperEnvSummary;
+  try {
+    summary = summarizeKeeperEnv();
+  } catch (error) {
+    console.error((error as Error).message);
     process.exit(1);
   }
-  console.log(`[keeper] watching ${CARDS_ADDRESS} on ${RPC} every ${INTERVAL_MS}ms`);
+  void logBootLine(summary);
   void poll();
   setInterval(() => void poll(), INTERVAL_MS);
 }

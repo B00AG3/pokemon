@@ -1,3 +1,8 @@
+// BACKUP TOOLING ONLY. The launch path of record is the Pons WEBSITE UI: the
+// user creates the token there by hand and hands TOKEN_ADDRESS to the
+// conductor, who hooks the card stack up around it with launch-cards.ts.
+// Nothing in the launch run uses this script; keep it only as a fallback if
+// the Pons website is unavailable on launch day. See docs/LAUNCH.md.
 import * as dotenv from 'dotenv';
 import { ethers } from 'ethers';
 

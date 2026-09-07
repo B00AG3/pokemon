@@ -1,5 +1,14 @@
 # Keeper process: no HTTP service, one always-on machine that polls the
 # milestone oracle and mints cards. Restart policy is set via CLI at deploy.
+#
+# All configuration is Fly secrets (fly secrets set -a pokecard-keeper ...);
+# no contract addresses, keys, or RPC urls live in this file. The launch
+# stack runs INTERVAL_MS=15000 with SWEEP_MODE=live and KEEPER_RPC_URL pinned
+# to https://rpc.mainnet.chain.robinhood.com - the script's built-in RPC
+# default is TESTNET, so an unset secret would silently poll the wrong chain.
+# KEEPER_PRIVATE_KEY and CARDS_ADDRESS are required; without them the process
+# exits non-zero at boot instead of polling anything. The exact cutover
+# secrets block and verification steps are in docs/LAUNCH.md.
 app = "pokecard-keeper"
 primary_region = "ams"
 

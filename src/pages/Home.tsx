@@ -23,7 +23,7 @@ const HOW_IT_WORKS = [
   {
     step: '03',
     title: 'Sell',
-    body: 'Won cards are yours to keep or sell to other holders at whatever price the market pays. The chart is the reference: double the cap, double the reference price.',
+    body: 'Won cards are yours to keep or sell back for ETH. The chart is the reference: double the cap, double the reference price.',
   },
 ];
 

@@ -9,7 +9,7 @@
  *
  * Env:
  *   MILESTONE_CARDS   comma-separated ordered TCGdex card ids
- *                     (default: a starter Base Set ladder)
+ *                     (default: the 30-card launch ladder)
  *   THRESHOLDS        comma-separated USD market caps, matching the contract
  *   PINATA_JWT        Pinata API JWT (optional - enables IPFS pinning)
  *   OUT_DIR           local output directory (default ./metadata-out)
@@ -21,8 +21,17 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const API = 'https://api.tcgdex.net/v2/en/cards';
-const DEFAULT_CARDS = 'base1-4,base1-2,base1-1,base1-6,base1-15';
-const DEFAULT_THRESHOLDS = '5000,10000,25000,50000,100000,250000,500000,1000000';
+// Mirrors src/constants/ladder.ts: rungs 1-30, $20,000 first and +$10,000
+// per rung up to $310,000, ids in LADDER_TCG_IDS order.
+const DEFAULT_CARDS =
+  'base1-4,base1-2,base1-1,base1-6,base1-15,base1-3,base1-5,base1-7,base1-8,' +
+  'base1-9,base1-10,base1-11,base1-12,base1-13,base1-14,base1-16,base2-1,' +
+  'base2-2,base2-3,base2-4,base2-5,base2-6,base2-7,base2-8,base2-9,base2-10,' +
+  'base2-11,base2-12,base2-13,base2-14';
+const DEFAULT_THRESHOLDS = Array.from(
+  { length: 30 },
+  (_, i) => 20000 + i * 10000,
+).join(',');
 
 const cards = (process.env.MILESTONE_CARDS ?? DEFAULT_CARDS)
   .split(',')

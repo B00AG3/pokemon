@@ -22,6 +22,23 @@ export function useMarketWrites() {
   const [busy, setBusy] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
 
+  /** Map contract reverts to sentences a player can act on. */
+  function friendlyRevert(message: string): string {
+    if (message.includes('NotHolder')) {
+      return 'You need to hold POKEDROP to enter the draw - grab some first from the Get POKEDROP page.';
+    }
+    if (message.includes('AlreadyEntered')) {
+      return 'This wallet is already in the draw - one entry per wallet.';
+    }
+    if (message.includes('NotEntered')) {
+      return 'This wallet is not in the draw.';
+    }
+    if (/reject|denied/i.test(message)) {
+      return 'The request was rejected in your wallet - nothing was sent.';
+    }
+    return message;
+  }
+
   async function run(label: string, fn: () => Promise<`0x${string}`>): Promise<void> {
     setBusy(label);
     setTxError(null);
@@ -30,7 +47,7 @@ export function useMarketWrites() {
       if (publicClient) await publicClient.waitForTransactionReceipt({ hash });
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'transaction failed';
-      setTxError(message);
+      setTxError(friendlyRevert(message));
       throw cause;
     } finally {
       setBusy(null);

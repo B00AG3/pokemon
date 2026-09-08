@@ -129,25 +129,14 @@ export default function TokenPage() {
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
-          {dexUrl ? (
-            <a
-              href={dexUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="btn btn-primary"
-            >
-              Buy POKEDROP on the DEX
-            </a>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled
-              title="The launch pool link goes live with the token"
-            >
-              Buy POKEDROP - pool goes live soon
-            </button>
-          )}
+          <a
+            href={dexUrl ?? 'https://ponsfamily.com/launchpad'}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-primary"
+          >
+            {dexUrl ? 'Buy POKEDROP on the DEX' : 'Buy POKEDROP on Pons'}
+          </a>
           {CONTRACTS.token && walletClient && (
             <button
               type="button"
